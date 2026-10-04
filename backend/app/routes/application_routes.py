@@ -1,0 +1,135 @@
+"""
+Scholarship Applications and Student Recommendations Routes
+"""
+
+from typing import List
+from datetime import datetime
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from backend.app.database.connection import get_db
+from backend.app.database.models import (
+    User, Application, Scholarship, EligibilityResult, StudentProfile,
+    AcademicRecord, FinancialRecord, Notification
+)
+from backend.app.schemas.scholarship_schemas import (
+    ApplicationCreate, ApplicationResponse, RecommendedScholarship
+)
+from backend.app.auth.jwt_handler import require_role
+from backend.app.services.recommendation_service import ScholarshipRecommendationEngine
+
+router = APIRouter(tags=["Applications & Recommendations"])
+
+@router.post("/applications", response_model=ApplicationResponse)
+def submit_application(
+    app_in: ApplicationCreate,
+    payload: dict = Depends(require_role(["STUDENT"])),
+    db: Session = Depends(get_db)
+):
+    user_id = int(payload.get("sub"))
+    
+    # Check if scholarship exists
+    scholarship = db.query(Scholarship).filter(Scholarship.id == app_in.scholarship_id).first()
+    if not scholarship:
+        raise HTTPException(status_code=404, detail="Scholarship does not exist.")
+
+    # Check for duplicate application
+    existing = db.query(Application).filter(
+        Application.user_id == user_id,
+        Application.scholarship_id == app_in.scholarship_id
+    ).first()
+    if existing:
+        raise HTTPException(
+            status_code=400,
+            detail=f"You have already applied for '{scholarship.title}' on {existing.applied_at.strftime('%d-%b-%Y')}."
+        )
+
+    # Get student's latest score
+    latest_eval = db.query(EligibilityResult).filter(
+        EligibilityResult.user_id == user_id
+    ).order_by(EligibilityResult.created_at.desc()).first()
+
+    score = latest_eval.hybrid_score if latest_eval else 75.0
+
+    new_app = Application(
+        user_id=user_id,
+        scholarship_id=app_in.scholarship_id,
+        status="PENDING",
+        score_at_application=score,
+        remarks=app_in.remarks
+    )
+    db.add(new_app)
+
+    # Add confirmation notification
+    note = Notification(
+        user_id=user_id,
+        title="Application Successfully Submitted",
+        message=f"Your application for '{scholarship.title}' (Grant: ₹{scholarship.amount:,.0f}) has been submitted for administrative verification.",
+        type="APPLICATION"
+    )
+    db.add(note)
+    db.commit()
+    db.refresh(new_app)
+
+    return {
+        "id": new_app.id,
+        "scholarship_id": scholarship.id,
+        "scholarship_title": scholarship.title,
+        "provider": scholarship.provider,
+        "amount": scholarship.amount,
+        "status": new_app.status,
+        "applied_at": new_app.applied_at,
+        "score_at_application": new_app.score_at_application,
+        "remarks": new_app.remarks
+    }
+
+@router.get("/applications", response_model=List[ApplicationResponse])
+def get_student_applications(
+    payload: dict = Depends(require_role(["STUDENT", "ADMIN"])),
+    db: Session = Depends(get_db)
+):
+    user_id = int(payload.get("sub"))
+    apps = db.query(Application).filter(Application.user_id == user_id).order_by(Application.applied_at.desc()).all()
+
+    results = []
+    for a in apps:
+        s = a.scholarship
+        results.append({
+            "id": a.id,
+            "scholarship_id": a.scholarship_id,
+            "scholarship_title": s.title if s else "Scholarship",
+            "provider": s.provider if s else "N/A",
+            "amount": s.amount if s else 0.0,
+            "status": a.status,
+            "applied_at": a.applied_at,
+            "score_at_application": a.score_at_application,
+            "remarks": a.remarks
+        })
+    return results
+
+@router.get("/recommendations", response_model=List[RecommendedScholarship])
+def get_recommendations(
+    payload: dict = Depends(require_role(["STUDENT", "ADMIN"])),
+    db: Session = Depends(get_db)
+):
+    user_id = int(payload.get("sub"))
+    profile = db.query(StudentProfile).filter(StudentProfile.user_id == user_id).first()
+    academics = db.query(AcademicRecord).filter(AcademicRecord.user_id == user_id).first()
+    financials = db.query(FinancialRecord).filter(FinancialRecord.user_id == user_id).first()
+
+    latest_eval = db.query(EligibilityResult).filter(
+        EligibilityResult.user_id == user_id
+    ).order_by(EligibilityResult.created_at.desc()).first()
+
+    prob = latest_eval.ml_probability if latest_eval else 0.75
+
+    student_dict = {
+        "cgpa": academics.cgpa if academics else 8.0,
+        "family_income": financials.family_income if financials else 250000.0,
+        "backlogs": academics.backlogs if academics else 0,
+        "category": profile.category if profile else "General",
+        "gender": profile.gender if profile else "Female",
+        "education_level": academics.education_level if academics else "Undergraduate",
+        "attendance": academics.attendance if academics else 85.0
+    }
+
+    return ScholarshipRecommendationEngine.get_recommendations(student_dict, db, ml_prob=prob)

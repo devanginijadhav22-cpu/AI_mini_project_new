@@ -1,0 +1,176 @@
+{
+  "best_model": "Gradient Boosting",
+  "selected_metric": "F1 Score",
+  "timestamp": "2026-09-27 20:39:30",
+  "models_benchmarked": {
+    "Logistic Regression": {
+      "name": "Logistic Regression",
+      "accuracy": 0.9175,
+      "precision": 0.9787,
+      "recall": 0.9169,
+      "f1_score": 0.9468,
+      "roc_auc": 0.9773,
+      "cv_f1_mean": 0.9456,
+      "cv_f1_std": 0.0028,
+      "confusion_matrix": [
+        [
+          2016,
+          176
+        ],
+        [
+          732,
+          8076
+        ]
+      ],
+      "training_time_seconds": 0.201
+    },
+    "Decision Tree": {
+      "name": "Decision Tree",
+      "accuracy": 0.9263,
+      "precision": 0.9829,
+      "recall": 0.924,
+      "f1_score": 0.9525,
+      "roc_auc": 0.9707,
+      "cv_f1_mean": 0.9438,
+      "cv_f1_std": 0.0036,
+      "confusion_matrix": [
+        [
+          2050,
+          142
+        ],
+        [
+          669,
+          8139
+        ]
+      ],
+      "training_time_seconds": 0.377
+    },
+    "Random Forest": {
+      "name": "Random Forest",
+      "accuracy": 0.9325,
+      "precision": 0.985,
+      "recall": 0.93,
+      "f1_score": 0.9567,
+      "roc_auc": 0.9802,
+      "cv_f1_mean": 0.9523,
+      "cv_f1_std": 0.0032,
+      "confusion_matrix": [
+        [
+          2067,
+          125
+        ],
+        [
+          617,
+          8191
+        ]
+      ],
+      "training_time_seconds": 0.592
+    },
+    "Gradient Boosting": {
+      "name": "Gradient Boosting",
+      "accuracy": 0.9428,
+      "precision": 0.986,
+      "recall": 0.942,
+      "f1_score": 0.9635,
+      "roc_auc": 0.9895,
+      "cv_f1_mean": 0.961,
+      "cv_f1_std": 0.0017,
+      "confusion_matrix": [
+        [
+          2074,
+          118
+        ],
+        [
+          511,
+          8297
+        ]
+      ],
+      "training_time_seconds": 1.468
+    }
+  },
+  "feature_importance": [
+    {
+      "feature": "family_income",
+      "importance": 0.3174
+    },
+    {
+      "feature": "backlogs",
+      "importance": 0.2378
+    },
+    {
+      "feature": "income_per_capita",
+      "importance": 0.2236
+    },
+    {
+      "feature": "cgpa",
+      "importance": 0.0253
+    },
+    {
+      "feature": "percentage",
+      "importance": 0.0227
+    },
+    {
+      "feature": "category_General",
+      "importance": 0.0214
+    },
+    {
+      "feature": "academic_consistency",
+      "importance": 0.0201
+    },
+    {
+      "feature": "cgpa_percentage_ratio",
+      "importance": 0.01
+    },
+    {
+      "feature": "attendance",
+      "importance": 0.0095
+    },
+    {
+      "feature": "family_size",
+      "importance": 0.0091
+    },
+    {
+      "feature": "first_generation",
+      "importance": 0.0073
+    },
+    {
+      "feature": "dependency_ratio",
+      "importance": 0.007
+    },
+    {
+      "feature": "category_SC",
+      "importance": 0.0068
+    },
+    {
+      "feature": "extracurricular_score",
+      "importance": 0.0045
+    },
+    {
+      "feature": "age",
+      "importance": 0.0044
+    },
+    {
+      "feature": "category_ST",
+      "importance": 0.0035
+    },
+    {
+      "feature": "rural_urban_Urban",
+      "importance": 0.0032
+    },
+    {
+      "feature": "rural_urban_Rural",
+      "importance": 0.0031
+    },
+    {
+      "feature": "category_OBC",
+      "importance": 0.003
+    },
+    {
+      "feature": "disability",
+      "importance": 0.0026
+    }
+  ],
+  "total_records": 55000,
+  "test_size": 11000,
+  "num_features": 79
+}
