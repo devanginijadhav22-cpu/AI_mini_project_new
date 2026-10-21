@@ -39,11 +39,6 @@ def generate_scholarship_dataset(num_records=55000, random_seed=42):
     state_weights = [0.12, 0.14, 0.09, 0.08, 0.06, 0.07, 0.07, 0.06, 0.05, 0.06, 0.06, 0.06, 0.05, 0.03]
     state = np.random.choice(states, size=num_records, p=state_weights)
     
-    # Reservation / Social Categories
-    categories = ["General", "OBC", "SC", "ST", "EWS"]
-    category_weights = [0.30, 0.35, 0.16, 0.09, 0.10]
-    category = np.random.choice(categories, size=num_records, p=category_weights)
-    
     # Disability Status: ~3.5% with disability
     disability = np.random.choice([0, 1], size=num_records, p=[0.965, 0.035])
     
@@ -124,62 +119,73 @@ def generate_scholarship_dataset(num_records=55000, random_seed=42):
     extracurricular_score = np.random.randint(1, 11, size=num_records) # Scale 1 to 10
     previous_scholarship = np.random.choice([0, 1], size=num_records, p=[0.82, 0.18])
     
-    # 5. Composite Socioeconomic & Academic Eligibility Score Calculation
-    # This reflects real scholarship assessment committees:
-    # High Merit (CGPA), Low Family Income, Reservation/Underrepresented, Disability, Achievements
+    # 5. Documented Transparent Eligibility Score Calculation (Caste-Independent)
+    # Evaluates purely academic performance (CGPA & exam percentage), attendance regularity,
+    # academic continuity (active backlogs penalty), and socioeconomic need (family income).
+    # Absolutely NO caste/category points, bonuses, or thresholds are utilized.
     
-    academic_score = (cgpa / 10.0) * 40.0 # Up to 40 pts
+    # 5a. Academic Merit Component (Up to 50 pts)
+    # CGPA contribute up to 35 pts; standardized examination percentage contributes up to 15 pts.
+    cgpa_score = (cgpa / 10.0) * 35.0
+    percentage_score = (percentage / 100.0) * 15.0
+    academic_score = cgpa_score + percentage_score
     
-    # Income Need Score: Up to 35 pts (Lower income = higher points)
-    # Income < 1.5 Lakhs -> 35 pts; 1.5L-3L -> 28 pts; 3L-6L -> 18 pts; 6L-8L -> 8 pts; >8L -> 0 pts
-    income_score = np.where(family_income <= 150000, 35.0,
-                    np.where(family_income <= 300000, 27.0,
-                    np.where(family_income <= 500000, 18.0,
-                    np.where(family_income <= 800000, 8.0, 0.0))))
+    # 5b. Socioeconomic Need Component (Up to 25 pts)
+    # Tiered need-based assessment based on annual family income:
+    # <= 1.5 Lakhs: 25.0 pts (Severe economic hardship)
+    # <= 3.0 Lakhs: 18.0 pts (Low income)
+    # <= 5.0 Lakhs: 10.0 pts (Lower-middle income)
+    # <= 8.0 Lakhs: 4.0 pts (Upper-middle income, government ceiling)
+    # > 8.0 Lakhs: 0.0 pts (Above standard need threshold)
+    income_score = np.where(family_income <= 150000, 25.0,
+                   np.where(family_income <= 300000, 18.0,
+                   np.where(family_income <= 500000, 10.0,
+                   np.where(family_income <= 800000, 4.0, 0.0))))
     
-    # Social Inclusivity & Equity Score: Up to 15 pts
-    category_score = np.where(np.isin(category, ["SC", "ST"]), 12.0,
-                     np.where(category == "OBC", 7.0,
-                     np.where(category == "EWS", 9.0, 2.0)))
+    # 5c. Attendance Regularity Component (Up to 15 pts)
+    # >= 85%: 15.0 pts (Exemplary discipline)
+    # 75% - 84.9%: 10.0 pts (Standard compliant attendance)
+    # 65% - 74.9%: 4.0 pts (Borderline / conditional attendance)
+    # < 65%: 0.0 pts (Non-compliant)
+    attendance_score = np.where(attendance >= 85.0, 15.0,
+                       np.where(attendance >= 75.0, 10.0,
+                       np.where(attendance >= 65.0, 4.0, 0.0)))
     
-    disability_bonus = np.where(disability == 1, 8.0, 0.0)
-    rural_bonus = np.where(rural_urban == "Rural", 4.0, np.where(rural_urban == "Semi-Urban", 2.0, 0.0))
-    first_gen_bonus = np.where(first_generation == 1, 4.0, 0.0)
+    # 5d. Academic Continuity Penalty (Active Backlogs)
+    # Each active backlog deducts 10.0 points from overall eligibility
+    backlog_penalty = backlogs * 10.0
     
-    # Achievement Bonus: Up to 10 pts
-    sports_bonus = np.where(sports_achievement == "National", 6.0,
-                   np.where(sports_achievement == "State", 4.0,
-                   np.where(sports_achievement == "District", 2.0, 0.0)))
-                   
-    academic_bonus = np.where(academic_achievement == "Research/Published", 6.0,
-                     np.where(academic_achievement == "Olympiad/Merit", 4.0,
-                     np.where(academic_achievement == "School/College Topper", 3.0, 0.0)))
+    # 5e. General Merit Achievements & Special Needs (Merit-based bonuses)
+    disability_bonus = np.where(disability == 1, 5.0, 0.0)
+    sports_bonus = np.where(sports_achievement == "National", 4.0,
+                   np.where(sports_achievement == "State", 2.0, 0.0))
+    academic_bonus = np.where(academic_achievement == "Research/Published", 5.0,
+                     np.where(academic_achievement == "Olympiad/Merit", 3.0, 0.0))
     
-    backlog_penalty = backlogs * 6.0
-    
+    # Composite Raw Score
     composite_raw = (
         academic_score + 
         income_score + 
-        category_score + 
+        attendance_score + 
         disability_bonus + 
-        rural_bonus + 
-        first_gen_bonus + 
         sports_bonus + 
         academic_bonus - 
         backlog_penalty
     )
     
-    # Committee subjectivity / realistic real-world variance: N(0, 3.5)
-    noise = np.random.normal(0, 3.5, size=num_records)
+    # Realistic evaluation variation: N(0, 2.0)
+    noise = np.random.normal(0, 2.0, size=num_records)
     total_score = composite_raw + noise
     
-    # Hard qualification thresholds:
-    # Must have family_income <= 800,000 for standard need-based scholarships OR CGPA >= 8.5 for merit-only
-    # Backlogs <= 2
-    mandatory_met = ((family_income <= 800000) | (cgpa >= 8.5)) & (backlogs <= 2) & (attendance >= 65.0)
+    # Mandatory Baseline Criteria:
+    # 1. Family income <= 8 Lakhs OR exceptional CGPA >= 8.5
+    # 2. Maximum 2 active backlogs
+    # 3. Minimum attendance >= 65.0%
+    # 4. Minimum academic baseline CGPA >= 6.0
+    mandatory_met = ((family_income <= 800000) | (cgpa >= 8.5)) & (backlogs <= 2) & (attendance >= 65.0) & (cgpa >= 6.0)
     
-    # Target Eligibility Label: 1 if score >= 54 and mandatory baseline met, else 0
-    eligible = np.where((total_score >= 54.0) & mandatory_met, 1, 0)
+    # Target Ground-Truth Eligibility Label (Deterministic rule-based cutoff at 62.0)
+    eligible = np.where((total_score >= 62.0) & mandatory_met, 1, 0)
     
     # Create DataFrame
     df = pd.DataFrame({
@@ -187,7 +193,6 @@ def generate_scholarship_dataset(num_records=55000, random_seed=42):
         "age": age,
         "gender": gender,
         "state": state,
-        "category": category,
         "disability": disability,
         "rural_urban": rural_urban,
         "first_generation": first_generation,
@@ -210,6 +215,17 @@ def generate_scholarship_dataset(num_records=55000, random_seed=42):
         "previous_scholarship": previous_scholarship,
         "eligible": eligible
     })
+    
+    # 6. Rigorous Dataset Validation
+    # Ensure no missing values, impossible marks, invalid CGPA, or out-of-range attendance
+    assert "category" not in df.columns, "Category column must not exist in generated dataset!"
+    assert not df.isnull().any().any(), "Dataset contains null or missing values!"
+    assert (df["cgpa"] >= 0.0).all() and (df["cgpa"] <= 10.0).all(), "Invalid CGPA detected outside [0.0, 10.0]!"
+    assert (df["percentage"] >= 0.0).all() and (df["percentage"] <= 100.0).all(), "Invalid percentage detected outside [0, 100]!"
+    assert (df["attendance"] >= 0.0).all() and (df["attendance"] <= 100.0).all(), "Invalid attendance detected outside [0, 100]!"
+    assert (df["backlogs"] >= 0).all(), "Negative backlogs detected!"
+    assert (df["family_income"] >= 0).all(), "Negative family income detected!"
+    assert set(df["eligible"].unique()).issubset({0, 1}), "Invalid eligibility target labels detected!"
     
     return df
 

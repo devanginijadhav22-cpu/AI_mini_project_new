@@ -8,8 +8,9 @@ $env:ComSpec = "C:\Windows\System32\cmd.exe"
 $projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 # 1. Start Backend in separate process
+$pythonCmd = if (Get-Command py -ErrorAction SilentlyContinue) { "py" } else { "python" }
 Write-Host "`n[1/2] Starting FastAPI Backend on http://127.0.0.1:8000..." -ForegroundColor Green
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$projectRoot'; python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$projectRoot'; $pythonCmd -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload"
 
 Start-Sleep -Seconds 3
 

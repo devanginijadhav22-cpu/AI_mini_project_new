@@ -6,9 +6,16 @@ echo ==========================================================
 
 set ComSpec=C:\Windows\System32\cmd.exe
 
+where py >nul 2>nul
+if %ERRORLEVEL% EQU 0 (
+    set PY_CMD=py
+) else (
+    set PY_CMD=python
+)
+
 echo.
 echo [1/2] Launching FastAPI Backend on http://127.0.0.1:8000...
-start cmd /k "python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload"
+start cmd /k "%PY_CMD% -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload"
 
 timeout /t 3 /nobreak >nul
 

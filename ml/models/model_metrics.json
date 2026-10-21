@@ -1,176 +1,178 @@
 {
   "best_model": "Gradient Boosting",
-  "selected_metric": "F1 Score",
-  "timestamp": "2026-09-27 20:39:30",
+  "selected_metric": "F1 Score & Balanced Generalization",
+  "timestamp": "2026-10-21 14:45:45",
   "models_benchmarked": {
     "Logistic Regression": {
       "name": "Logistic Regression",
-      "accuracy": 0.9175,
-      "precision": 0.9787,
-      "recall": 0.9169,
-      "f1_score": 0.9468,
-      "roc_auc": 0.9773,
-      "cv_f1_mean": 0.9456,
-      "cv_f1_std": 0.0028,
+      "accuracy": 0.9245,
+      "precision": 0.9652,
+      "recall": 0.9235,
+      "f1_score": 0.9439,
+      "roc_auc": 0.9807,
+      "cv_f1_mean": 0.9419,
+      "cv_f1_std": 0.0044,
       "confusion_matrix": [
         [
-          2016,
-          176
+          3183,
+          252
         ],
         [
-          732,
-          8076
+          579,
+          6986
         ]
       ],
-      "training_time_seconds": 0.201
+      "training_time_seconds": 0.182
     },
     "Decision Tree": {
       "name": "Decision Tree",
-      "accuracy": 0.9263,
-      "precision": 0.9829,
-      "recall": 0.924,
-      "f1_score": 0.9525,
-      "roc_auc": 0.9707,
-      "cv_f1_mean": 0.9438,
-      "cv_f1_std": 0.0036,
+      "accuracy": 0.9393,
+      "precision": 0.9736,
+      "recall": 0.9371,
+      "f1_score": 0.955,
+      "roc_auc": 0.981,
+      "cv_f1_mean": 0.9504,
+      "cv_f1_std": 0.002,
       "confusion_matrix": [
         [
-          2050,
-          142
+          3243,
+          192
         ],
         [
-          669,
-          8139
+          476,
+          7089
         ]
       ],
-      "training_time_seconds": 0.377
+      "training_time_seconds": 0.243
     },
     "Random Forest": {
       "name": "Random Forest",
-      "accuracy": 0.9325,
-      "precision": 0.985,
-      "recall": 0.93,
-      "f1_score": 0.9567,
-      "roc_auc": 0.9802,
-      "cv_f1_mean": 0.9523,
-      "cv_f1_std": 0.0032,
+      "accuracy": 0.9396,
+      "precision": 0.982,
+      "recall": 0.9293,
+      "f1_score": 0.9549,
+      "roc_auc": 0.9879,
+      "cv_f1_mean": 0.952,
+      "cv_f1_std": 0.0033,
       "confusion_matrix": [
         [
-          2067,
-          125
+          3306,
+          129
         ],
         [
-          617,
-          8191
+          535,
+          7030
         ]
       ],
-      "training_time_seconds": 0.592
+      "training_time_seconds": 0.5
     },
     "Gradient Boosting": {
       "name": "Gradient Boosting",
-      "accuracy": 0.9428,
-      "precision": 0.986,
-      "recall": 0.942,
-      "f1_score": 0.9635,
-      "roc_auc": 0.9895,
-      "cv_f1_mean": 0.961,
-      "cv_f1_std": 0.0017,
+      "accuracy": 0.9508,
+      "precision": 0.9782,
+      "recall": 0.9496,
+      "f1_score": 0.9637,
+      "roc_auc": 0.9922,
+      "cv_f1_mean": 0.9614,
+      "cv_f1_std": 0.0024,
       "confusion_matrix": [
         [
-          2074,
-          118
+          3275,
+          160
         ],
         [
-          511,
-          8297
+          381,
+          7184
         ]
       ],
-      "training_time_seconds": 1.468
+      "training_time_seconds": 1.187
     }
   },
   "feature_importance": [
     {
-      "feature": "family_income",
-      "importance": 0.3174
+      "feature": "backlogs",
+      "importance": 0.358
     },
     {
-      "feature": "backlogs",
-      "importance": 0.2378
+      "feature": "family_income",
+      "importance": 0.2356
     },
     {
       "feature": "income_per_capita",
-      "importance": 0.2236
+      "importance": 0.1476
     },
     {
       "feature": "cgpa",
-      "importance": 0.0253
-    },
-    {
-      "feature": "percentage",
-      "importance": 0.0227
-    },
-    {
-      "feature": "category_General",
-      "importance": 0.0214
+      "importance": 0.0565
     },
     {
       "feature": "academic_consistency",
-      "importance": 0.0201
+      "importance": 0.0561
     },
     {
-      "feature": "cgpa_percentage_ratio",
-      "importance": 0.01
+      "feature": "percentage",
+      "importance": 0.0453
     },
     {
       "feature": "attendance",
+      "importance": 0.0174
+    },
+    {
+      "feature": "cgpa_percentage_ratio",
       "importance": 0.0095
     },
     {
       "feature": "family_size",
-      "importance": 0.0091
-    },
-    {
-      "feature": "first_generation",
-      "importance": 0.0073
+      "importance": 0.0078
     },
     {
       "feature": "dependency_ratio",
-      "importance": 0.007
-    },
-    {
-      "feature": "category_SC",
-      "importance": 0.0068
+      "importance": 0.0056
     },
     {
       "feature": "extracurricular_score",
-      "importance": 0.0045
+      "importance": 0.0042
     },
     {
       "feature": "age",
-      "importance": 0.0044
+      "importance": 0.0037
     },
     {
-      "feature": "category_ST",
-      "importance": 0.0035
-    },
-    {
-      "feature": "rural_urban_Urban",
-      "importance": 0.0032
-    },
-    {
-      "feature": "rural_urban_Rural",
-      "importance": 0.0031
-    },
-    {
-      "feature": "category_OBC",
-      "importance": 0.003
+      "feature": "academic_achievement_School/College Topper",
+      "importance": 0.0026
     },
     {
       "feature": "disability",
-      "importance": 0.0026
+      "importance": 0.0022
+    },
+    {
+      "feature": "year",
+      "importance": 0.0019
+    },
+    {
+      "feature": "sports_achievement_District",
+      "importance": 0.0018
+    },
+    {
+      "feature": "earning_members",
+      "importance": 0.0014
+    },
+    {
+      "feature": "sports_achievement_National",
+      "importance": 0.0013
+    },
+    {
+      "feature": "academic_achievement_Olympiad/Merit",
+      "importance": 0.0012
+    },
+    {
+      "feature": "academic_achievement_Research/Published",
+      "importance": 0.0009
     }
   ],
   "total_records": 55000,
   "test_size": 11000,
-  "num_features": 79
+  "num_features": 74,
+  "policy_compliance": "Caste/Category Independent - Pure Academic & Socioeconomic Merit",
+  "evaluation_caveat": "Metrics reflect reproduction of documented deterministic policy rules on synthetic cohort distributions."
 }

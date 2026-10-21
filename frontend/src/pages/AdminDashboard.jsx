@@ -38,26 +38,39 @@ const AdminDashboard = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+        <div className="w-6 h-6 border-2 border-zinc-200 border-t-zinc-900 rounded-full animate-spin"></div>
       </div>
     );
   }
 
+  // Refined neutral palette for pie chart slices
+  const neutralFills = ['#18181b', '#52525b', '#a1a1aa', '#e4e4e7'];
+
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
-      {/* Top Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-6 sm:p-8 text-white shadow-lg relative overflow-hidden">
-        <div className="max-w-2xl relative z-10 space-y-2">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-indigo-300 text-xs font-semibold border border-white/10">
+    <div className="space-y-6 max-w-7xl mx-auto">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-200">
+        <div>
+          <div className="inline-flex items-center gap-1.5 text-xs text-zinc-500 mb-1">
             <ShieldCheck className="w-3.5 h-3.5" />
-            <span>National Scholarship Administration</span>
+            <span>National Administration</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+          <h1 className="text-xl font-semibold text-zinc-900 tracking-tight">
             Central Administrative Command Center
           </h1>
-          <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-            Monitor real-time applicant submissions, oversee automated rule enforcement, and track live machine learning performance metrics across 55,000+ benchmarked profiles.
+          <p className="text-xs text-zinc-500 mt-0.5">
+            Monitor real-time applicant submissions, verify statutory criteria, and audit machine learning inference pipelines.
           </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Link
+            to="/admin/models"
+            className="px-3.5 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-medium rounded-lg transition flex items-center gap-1.5"
+          >
+            <Cpu className="w-3.5 h-3.5" />
+            <span>ML Status</span>
+          </Link>
         </div>
       </div>
 
@@ -101,14 +114,12 @@ const AdminDashboard = () => {
       </div>
 
       {/* Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Eligibility Distribution */}
-        <div className="card-soft p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-bold text-slate-900">Student Eligibility Distribution</h3>
-              <p className="text-xs text-slate-500">Breakdown of student pool by AI qualification verdict</p>
-            </div>
+        <div className="bg-white p-5 rounded-xl border border-zinc-200/80 space-y-4">
+          <div>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-700">Student Eligibility Distribution</h3>
+            <p className="text-xs text-zinc-500">Breakdown of student pool by AI qualification verdict</p>
           </div>
 
           <div className="h-64 w-full">
@@ -119,16 +130,19 @@ const AdminDashboard = () => {
                   cx="50%"
                   cy="50%"
                   innerRadius={55}
-                  outerRadius={85}
-                  paddingAngle={5}
+                  outerRadius={80}
+                  paddingAngle={4}
                   dataKey="count"
                 >
                   {(analytics?.eligibility_distribution || []).map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={entry.fill || neutralFills[index % neutralFills.length]} 
+                    />
                   ))}
                 </Pie>
                 <Tooltip 
-                  contentStyle={{ backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }}
+                  contentStyle={{ backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #e4e4e7', fontSize: '11px' }}
                 />
                 <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
               </PieChart>
@@ -137,26 +151,26 @@ const AdminDashboard = () => {
         </div>
 
         {/* Applications by Scholarship */}
-        <div className="card-soft p-6 space-y-4">
+        <div className="bg-white p-5 rounded-xl border border-zinc-200/80 space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Application Volume by Scheme</h3>
-              <p className="text-xs text-slate-500">Top scholarship schemes by student demand</p>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-700">Application Volume by Scheme</h3>
+              <p className="text-xs text-zinc-500">Top scholarship schemes by student demand</p>
             </div>
-            <Link to="/admin/scholarships" className="text-xs text-brand-600 hover:underline">
-              Manage Schemes
+            <Link to="/admin/scholarships" className="text-xs text-zinc-700 hover:text-zinc-950 hover:underline">
+              Manage Schemes →
             </Link>
           </div>
 
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={analytics?.applications_by_scholarship || []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <XAxis dataKey="title" tick={{ fontSize: 10 }} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                <XAxis dataKey="title" tick={{ fontSize: 10, fill: '#71717a' }} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: '#71717a' }} />
                 <Tooltip 
-                  contentStyle={{ backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }}
+                  contentStyle={{ backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #e4e4e7', fontSize: '11px' }}
                 />
-                <Bar dataKey="applications" fill="#6366F1" radius={[6, 6, 0, 0]} barSize={28} />
+                <Bar dataKey="applications" fill="#18181b" radius={[4, 4, 0, 0]} barSize={24} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -164,49 +178,49 @@ const AdminDashboard = () => {
       </div>
 
       {/* Quick Action Navigation Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Link
           to="/admin/students"
-          className="card-soft p-6 space-y-3 hover:border-indigo-400 group transition"
+          className="bg-white p-5 rounded-xl border border-zinc-200/80 space-y-2.5 hover:border-zinc-300 transition"
         >
-          <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-            <Users className="w-5 h-5" />
+          <div className="w-8 h-8 rounded-lg bg-zinc-100 text-zinc-700 flex items-center justify-center border border-zinc-200">
+            <Users className="w-4 h-4" />
           </div>
-          <h4 className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition">
+          <h4 className="text-xs font-semibold text-zinc-900 flex items-center gap-1">
             Student Management →
           </h4>
-          <p className="text-xs text-slate-500">
-            Inspect verified applicant profiles, academic marks, and certificate authenticity.
+          <p className="text-xs text-zinc-500 leading-relaxed">
+            Inspect verified applicant profiles, academic marks, and certificate authenticity in the central roster.
           </p>
         </Link>
 
         <Link
           to="/admin/models"
-          className="card-soft p-6 space-y-3 hover:border-indigo-400 group transition"
+          className="bg-white p-5 rounded-xl border border-zinc-200/80 space-y-2.5 hover:border-zinc-300 transition"
         >
-          <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
-            <Cpu className="w-5 h-5" />
+          <div className="w-8 h-8 rounded-lg bg-zinc-100 text-zinc-700 flex items-center justify-center border border-zinc-200">
+            <Cpu className="w-4 h-4" />
           </div>
-          <h4 className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition">
+          <h4 className="text-xs font-semibold text-zinc-900 flex items-center gap-1">
             ML Performance & Retraining →
           </h4>
-          <p className="text-xs text-slate-500">
-            Audit Confusion Matrix, ROC-AUC curves (0.9895), feature importance, and trigger retrain.
+          <p className="text-xs text-zinc-500 leading-relaxed">
+            Audit Confusion Matrix, ROC-AUC metrics (0.9895), feature importance, and trigger automated retraining.
           </p>
         </Link>
 
         <Link
           to="/admin/analytics"
-          className="card-soft p-6 space-y-3 hover:border-indigo-400 group transition"
+          className="bg-white p-5 rounded-xl border border-zinc-200/80 space-y-2.5 hover:border-zinc-300 transition"
         >
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-            <BarChart3 className="w-5 h-5" />
+          <div className="w-8 h-8 rounded-lg bg-zinc-100 text-zinc-700 flex items-center justify-center border border-zinc-200">
+            <BarChart3 className="w-4 h-4" />
           </div>
-          <h4 className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition">
-            Deep Demographic Analytics →
+          <h4 className="text-xs font-semibold text-zinc-900 flex items-center gap-1">
+            Demographic Analytics →
           </h4>
-          <p className="text-xs text-slate-500">
-            Examine income spread, category quotas, and geographical representation across India.
+          <p className="text-xs text-zinc-500 leading-relaxed">
+            Examine income spread, category quotas, and geographical representation across regional applicant cohorts.
           </p>
         </Link>
       </div>
@@ -215,3 +229,4 @@ const AdminDashboard = () => {
 };
 
 export default AdminDashboard;
+

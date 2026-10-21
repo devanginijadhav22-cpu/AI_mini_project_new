@@ -7,21 +7,31 @@ export default {
   theme: {
     extend: {
       colors: {
+        primary: {
+          DEFAULT: '#0f172a', // Deep charcoal / slate 900
+          hover: '#1e293b',
+          subtle: '#f1f5f9',
+        },
+        accent: {
+          DEFAULT: '#2563eb', // Sophisticated blue accent
+          hover: '#1d4ed8',
+          subtle: '#eff6ff',
+        },
         brand: {
-          50: '#f0f7ff',
-          100: '#e0effe',
-          200: '#bae0fd',
-          300: '#7cc5fb',
-          400: '#36a6f7',
-          500: '#0c87eb',
-          600: '#026bc9',
-          700: '#0355a3',
-          800: '#074886',
-          900: '#0c3d6f',
+          50: '#f8fafc',
+          100: '#f1f5f9',
+          200: '#e2e8f0',
+          300: '#cbd5e1',
+          400: '#94a3b8',
+          500: '#64748b',
+          600: '#475569',
+          700: '#334155',
+          800: '#1e293b',
+          900: '#0f172a',
         }
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
       }
     },
   },

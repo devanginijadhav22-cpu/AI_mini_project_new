@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/student", tags=["Student"])
 
 # Required fields per section - a section is only "filled" when these have real values
-REQUIRED_PERSONAL_FIELDS   = ["state", "city", "category", "gender", "age"]
+REQUIRED_PERSONAL_FIELDS   = ["state", "city", "gender", "age"]
 REQUIRED_ACADEMIC_FIELDS   = ["education_level", "course", "year_of_study", "cgpa", "attendance"]
 REQUIRED_FINANCIAL_FIELDS  = ["family_income", "family_size", "parent_occupation", "earning_members"]
 REQUIRED_ACHIEVEMENT_FIELDS = ["sports_achievement", "academic_achievement"]

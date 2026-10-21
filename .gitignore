@@ -61,3 +61,6 @@ Thumbs.db
 # Database
 # Note: Keep SQLite db if you want default sample data, but usually .db can be ignored or included. We will keep scholarship_system.db if needed or ignore temp files:
 *.db-journal
+
+# Backup files
+*.bak*

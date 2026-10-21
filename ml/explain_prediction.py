@@ -124,24 +124,16 @@ class ScholarshipExplainer:
                 "description": f"Single earner supporting {family_size} members increases socioeconomic priority."
             })
 
-        # 3. Inclusivity & Diversity
-        category = str(student_data.get("category", "General"))
+        # 3. Inclusivity & Regional Factors
         disability = int(student_data.get("disability", 0))
         first_gen = int(student_data.get("first_generation", 0))
         rural_urban = str(student_data.get("rural_urban", "Urban"))
         
-        if category in ["SC", "ST", "OBC", "EWS"]:
-            positive_factors.append({
-                "factor": f"Reservation Category Consideration ({category})",
-                "impact": "Positive",
-                "description": f"Eligible for targeted Central/State ministry affirmative quotas for {category} scholars."
-            })
-            
         if disability == 1:
             positive_factors.append({
                 "factor": "Persons with Disabilities (PwD) Priority Quota",
                 "impact": "High Positive",
-                "description": "Eligible for dedicated PwD financial aid programs with reduced threshold criteria."
+                "description": "Eligible for dedicated PwD financial aid programs with specialized support criteria."
             })
             
         if first_gen == 1:
@@ -188,7 +180,7 @@ class ScholarshipExplainer:
         if sports == "None" and academic == "None" and ec_score < 6:
             improvement_tips.append("Participate in co-curricular hackathons, state competitions, or certifications to enhance profile strength.")
         if int(student_data.get("previous_scholarship", 0)) == 0:
-            improvement_tips.append("Ensure official Income & Category certificates are renewed and digitally verified on DigiLocker.")
+            improvement_tips.append("Ensure official family income certificates and academic mark sheets are verified on DigiLocker.")
             
         return {
             "ml_probability": round(ml_probability, 4),

@@ -90,7 +90,8 @@ def assess_eligibility(
     profile.gender            = payload_data.gender
     profile.state             = payload_data.state
     profile.city              = payload_data.city
-    profile.category          = payload_data.category
+    if payload_data.category is not None:
+        profile.category      = payload_data.category
     profile.disability        = payload_data.disability
     profile.rural_urban       = payload_data.rural_urban
     profile.first_generation  = payload_data.first_generation

@@ -35,7 +35,7 @@ const SettingsPage = () => {
         email: user.email,
         new_password: newPassword
       });
-      setMsg("Password successfully updated!");
+      setMsg("Password successfully updated.");
       setNewPassword('');
       setConfirmPassword('');
     } catch (err) {
@@ -46,37 +46,37 @@ const SettingsPage = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">System & Account Settings</h1>
-        <p className="text-xs text-slate-500">Security preferences, credentials, and expert engine weight parameters</p>
+    <div className="max-w-4xl mx-auto space-y-6">
+      <div className="pb-4 border-b border-zinc-200">
+        <h1 className="text-xl font-semibold text-zinc-900 tracking-tight">System & Account Settings</h1>
+        <p className="text-xs text-zinc-500 mt-0.5">Security preferences, credentials, and expert engine weight parameters</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {/* Account Info */}
-        <div className="card-soft p-6 space-y-4">
-          <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 pb-2 border-b border-slate-100">
-            <Shield className="w-4 h-4 text-brand-600" />
+        <div className="bg-white p-5 rounded-xl border border-zinc-200/80 space-y-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-700 flex items-center gap-2 pb-2 border-b border-zinc-100">
+            <Shield className="w-4 h-4 text-zinc-500" />
             Account Overview
           </h3>
 
-          <div className="space-y-3 text-xs">
-            <div className="flex justify-between py-1 border-b border-slate-50">
-              <span className="text-slate-500">Full Name:</span>
-              <span className="font-semibold text-slate-800">{user?.full_name}</span>
+          <div className="space-y-2.5 text-xs">
+            <div className="flex justify-between py-1 border-b border-zinc-100">
+              <span className="text-zinc-500">Full Name</span>
+              <span className="font-medium text-zinc-900">{user?.full_name}</span>
             </div>
-            <div className="flex justify-between py-1 border-b border-slate-50">
-              <span className="text-slate-500">Registered Email:</span>
-              <span className="font-mono text-slate-700">{user?.email}</span>
+            <div className="flex justify-between py-1 border-b border-zinc-100">
+              <span className="text-zinc-500">Email Address</span>
+              <span className="font-mono text-zinc-700">{user?.email}</span>
             </div>
-            <div className="flex justify-between py-1 border-b border-slate-50">
-              <span className="text-slate-500">Account Role:</span>
-              <span className="font-bold text-brand-700">{user?.role}</span>
+            <div className="flex justify-between py-1 border-b border-zinc-100">
+              <span className="text-zinc-500">Account Role</span>
+              <span className="font-medium text-zinc-900">{user?.role}</span>
             </div>
-            <div className="flex justify-between py-1 border-b border-slate-50">
-              <span className="text-slate-500">Session Status:</span>
-              <span className="text-emerald-600 font-semibold flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <div className="flex justify-between py-1 border-b border-zinc-100">
+              <span className="text-zinc-500">Session Status</span>
+              <span className="text-zinc-700 font-medium flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                 Active (JWT Protected)
               </span>
             </div>
@@ -85,7 +85,7 @@ const SettingsPage = () => {
           <div className="pt-2">
             <button
               onClick={logout}
-              className="w-full py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-lg transition"
+              className="w-full py-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-medium text-xs rounded-lg transition border border-zinc-200"
             >
               Log Out of Workspace
             </button>
@@ -93,9 +93,9 @@ const SettingsPage = () => {
         </div>
 
         {/* Change Password */}
-        <div className="card-soft p-6 space-y-4">
-          <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 pb-2 border-b border-slate-100">
-            <Lock className="w-4 h-4 text-brand-600" />
+        <div className="bg-white p-5 rounded-xl border border-zinc-200/80 space-y-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-700 flex items-center gap-2 pb-2 border-b border-zinc-100">
+            <Lock className="w-4 h-4 text-zinc-500" />
             Change Password
           </h3>
 
@@ -115,33 +115,33 @@ const SettingsPage = () => {
 
           <form onSubmit={handlePasswordChange} className="space-y-3 text-xs">
             <div>
-              <label className="block text-slate-600 font-medium mb-1">New Password</label>
+              <label className="block text-zinc-600 font-medium mb-1">New Password</label>
               <input
                 type="password"
                 required
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder="At least 6 characters"
-                className="w-full p-2 border border-slate-300 rounded-lg"
+                className="w-full px-2.5 py-1.5 border border-zinc-200 rounded-lg bg-zinc-50/30 focus:outline-none focus:border-zinc-400"
               />
             </div>
 
             <div>
-              <label className="block text-slate-600 font-medium mb-1">Confirm New Password</label>
+              <label className="block text-zinc-600 font-medium mb-1">Confirm New Password</label>
               <input
                 type="password"
                 required
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Repeat password"
-                className="w-full p-2 border border-slate-300 rounded-lg"
+                className="w-full px-2.5 py-1.5 border border-zinc-200 rounded-lg bg-zinc-50/30 focus:outline-none focus:border-zinc-400"
               />
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-lg shadow-sm transition disabled:opacity-50"
+              className="w-full py-1.5 bg-zinc-900 hover:bg-zinc-800 text-white font-medium text-xs rounded-lg transition disabled:opacity-50"
             >
               {loading ? 'Updating Password...' : 'Save New Password'}
             </button>
@@ -150,32 +150,32 @@ const SettingsPage = () => {
       </div>
 
       {/* Hybrid Expert System Weights Breakdown */}
-      <div className="card-soft p-6 space-y-4">
-        <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-          <Sliders className="w-5 h-5 text-indigo-600" />
+      <div className="bg-white p-5 rounded-xl border border-zinc-200/80 space-y-4">
+        <div className="flex items-center gap-2 pb-2 border-b border-zinc-100">
+          <Sliders className="w-4 h-4 text-zinc-500" />
           <div>
-            <h3 className="text-sm font-bold text-slate-900">Hybrid Expert System Weight Calibration</h3>
-            <p className="text-xs text-slate-500">Mathematical weighting used to compute student Hybrid Eligibility Scores</p>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-700">Hybrid Expert System Weight Calibration</h3>
+            <p className="text-xs text-zinc-500">Mathematical weighting used to compute student Hybrid Eligibility Scores</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-xs">
-          <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+          <div className="p-4 bg-zinc-50/60 rounded-lg border border-zinc-200/70 space-y-1.5">
             <div className="flex justify-between items-center">
-              <span className="font-bold text-slate-900">Machine Learning Model Weight</span>
-              <span className="font-extrabold text-brand-600">{mlWeight}%</span>
+              <span className="font-medium text-zinc-900">Machine Learning Model Weight</span>
+              <span className="font-semibold text-zinc-900">{mlWeight}%</span>
             </div>
-            <p className="text-slate-500 text-[11px] leading-relaxed">
-              Assesses multidimensional pattern suitability across 79 features (demographics, income per capita, attendance consistency, academic excellence).
+            <p className="text-zinc-500 text-[11px] leading-relaxed">
+              Assesses multidimensional pattern suitability across 79 features (demographics, per capita income, attendance regularity, academic merit).
             </p>
           </div>
 
-          <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+          <div className="p-4 bg-zinc-50/60 rounded-lg border border-zinc-200/70 space-y-1.5">
             <div className="flex justify-between items-center">
-              <span className="font-bold text-slate-900">Statutory Rule Engine Weight</span>
-              <span className="font-extrabold text-emerald-600">{ruleWeight}%</span>
+              <span className="font-medium text-zinc-900">Statutory Rule Engine Weight</span>
+              <span className="font-semibold text-zinc-900">{ruleWeight}%</span>
             </div>
-            <p className="text-slate-500 text-[11px] leading-relaxed">
+            <p className="text-zinc-500 text-[11px] leading-relaxed">
               Validates hard statutory non-negotiable clauses (income ceiling limits, maximum backlogs allowed, minimum attendance threshold).
             </p>
           </div>
@@ -186,3 +186,4 @@ const SettingsPage = () => {
 };
 
 export default SettingsPage;
+

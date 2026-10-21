@@ -87,7 +87,14 @@ def prepare_train_test_data(test_size=0.2, random_state=42):
     df = load_and_clean_data()
     
     y = df[TARGET_COLUMN].values
-    X_raw = df.drop(columns=[TARGET_COLUMN, "student_id"])
+    engineered_cols = [
+        "income_per_capita",
+        "cgpa_percentage_ratio",
+        "dependency_ratio",
+        "academic_consistency"
+    ]
+    feature_cols = [c for c in (ALL_FEATURE_COLUMNS + engineered_cols) if c in df.columns]
+    X_raw = df[feature_cols]
     
     X_train_raw, X_test_raw, y_train, y_test = train_test_split(
         X_raw, y, test_size=test_size, random_state=random_state, stratify=y

@@ -127,6 +127,7 @@ def get_all_applications(
             "status":              a.status,
             "applied_at":          a.applied_at,
             "score_at_application": a.score_at_application,
+            "required_category":   s.required_category if s else "All",
             "remarks":             a.remarks
         })
     return results

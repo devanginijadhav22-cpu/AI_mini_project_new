@@ -8,7 +8,6 @@ import numpy as np
 CATEGORICAL_FEATURES = [
     "gender",
     "state",
-    "category",
     "rural_urban",
     "education_level",
     "course",

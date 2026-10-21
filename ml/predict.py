@@ -44,8 +44,17 @@ class ScholarshipPredictor:
             if self.model is None:
                 raise RuntimeError("ML model not initialized. Run training first.")
                 
+        # Clean input dictionary: remove caste/category if present, ensure safe defaults
+        clean_dict = {k: v for k, v in student_dict.items() if k != "category"}
+        for num_col in NUMERICAL_FEATURES:
+            if num_col not in clean_dict or clean_dict[num_col] is None:
+                clean_dict[num_col] = 0.0
+        for cat_col in CATEGORICAL_FEATURES:
+            if cat_col not in clean_dict or clean_dict[cat_col] is None:
+                clean_dict[cat_col] = "Unknown"
+
         # Format as single-row DataFrame
-        df = pd.DataFrame([student_dict])
+        df = pd.DataFrame([clean_dict])
         
         # Apply feature engineering
         df_engineered = engineer_features(df)

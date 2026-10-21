@@ -4,11 +4,9 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
-import Footer from './components/Footer';
 import ProtectedRoute from './components/ProtectedRoute';
 
 // Pages
-import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import AdminLoginPage from './pages/AdminLoginPage';
@@ -27,22 +25,39 @@ import AnalyticsPage from './pages/AnalyticsPage';
 import MLModelPerformance from './pages/MLModelPerformance';
 import SettingsPage from './pages/SettingsPage';
 
+// Component that redirects authenticated users to their dashboard, otherwise renders public auth child
+const PublicRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-zinc-200 border-t-zinc-900 rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (user) {
+    return <Navigate to={user.role === 'ADMIN' ? '/admin/dashboard' : '/student/dashboard'} replace />;
+  }
+
+  return children;
+};
+
 const AppLayout = ({ children }) => {
   const { user } = useAuth();
   const location = useLocation();
-  const isAuthPage = ['/login', '/register', '/admin-login'].includes(location.pathname);
-  const isLandingPage = location.pathname === '/';
+  const isAuthPage = ['/', '/login', '/register', '/admin-login'].includes(location.pathname);
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800">
+    <div className="min-h-screen flex flex-col bg-[#fafafa] text-zinc-900">
       <Navbar />
       <div className="flex-1 flex">
-        {user && !isAuthPage && !isLandingPage && <Sidebar />}
-        <main className={`flex-1 p-4 sm:p-6 lg:p-8 ${!user || isAuthPage || isLandingPage ? 'max-w-7xl mx-auto w-full' : ''}`}>
+        {user && !isAuthPage && <Sidebar />}
+        <main className={`flex-1 p-4 sm:p-6 lg:p-8 ${!user || isAuthPage ? 'max-w-7xl mx-auto w-full' : ''}`}>
           {children}
         </main>
       </div>
-      <Footer />
     </div>
   );
 };
@@ -53,11 +68,39 @@ function App() {
       <Router>
         <AppLayout>
           <Routes>
-            {/* Public Pages */}
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/admin-login" element={<AdminLoginPage />} />
+            {/* Public Entry & Authentication Routes */}
+            <Route
+              path="/"
+              element={
+                <PublicRoute>
+                  <LoginPage />
+                </PublicRoute>
+              }
+            />
+            <Route
+              path="/login"
+              element={
+                <PublicRoute>
+                  <LoginPage />
+                </PublicRoute>
+              }
+            />
+            <Route
+              path="/register"
+              element={
+                <PublicRoute>
+                  <RegisterPage />
+                </PublicRoute>
+              }
+            />
+            <Route
+              path="/admin-login"
+              element={
+                <PublicRoute>
+                  <AdminLoginPage />
+                </PublicRoute>
+              }
+            />
 
             {/* Student Protected Routes */}
             <Route

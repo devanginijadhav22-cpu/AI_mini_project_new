@@ -12,7 +12,7 @@ class StudentProfileSchema(BaseModel):
     phone: Optional[str] = None
     state: str = "Maharashtra"
     city: str = "Mumbai"
-    category: str = "General"
+    category: Optional[str] = None
     disability: int = 0
     rural_urban: str = "Urban"
     first_generation: int = 0
@@ -62,7 +62,7 @@ class AssessmentPayload(BaseModel):
     gender: str
     state: str
     city: str
-    category: str
+    category: Optional[str] = None
     disability: int
     rural_urban: str
     first_generation: int

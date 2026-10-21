@@ -60,6 +60,7 @@ class ApplicationAdminView(BaseModel):
     status: str
     applied_at: datetime
     score_at_application: float
+    required_category: Optional[str] = "All"
     remarks: Optional[str] = None
 
     class Config:

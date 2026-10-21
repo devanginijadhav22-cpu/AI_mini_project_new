@@ -48,15 +48,15 @@ const NotificationsPage = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-200">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Notification Center</h1>
-          <p className="text-xs text-slate-500">Real-time alerts on eligibility updates, application reviews, and deadlines</p>
+          <h1 className="text-xl font-semibold text-zinc-900 tracking-tight">Notification Center</h1>
+          <p className="text-xs text-zinc-500 mt-0.5">Alerts on eligibility updates, application review statuses, and deadlines</p>
         </div>
 
         <button
           onClick={handleMarkAllRead}
-          className="self-start sm:self-auto px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition flex items-center gap-1.5"
+          className="self-start sm:self-auto px-3.5 py-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-xs font-medium rounded-lg transition flex items-center gap-1.5 border border-zinc-200"
         >
           <Check className="w-3.5 h-3.5" />
           <span>Mark All Read</span>
@@ -67,24 +67,24 @@ const NotificationsPage = () => {
       <div className="flex items-center gap-2">
         <button
           onClick={() => setFilter('ALL')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-            filter === 'ALL' ? 'bg-brand-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+            filter === 'ALL' ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
           }`}
         >
           All Alerts ({notifications.length})
         </button>
         <button
           onClick={() => setFilter('UNREAD')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-            filter === 'UNREAD' ? 'bg-brand-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+            filter === 'UNREAD' ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
           }`}
         >
           Unread ({notifications.filter(n => !n.is_read).length})
         </button>
         <button
           onClick={() => setFilter('APPLICATIONS')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-            filter === 'APPLICATIONS' ? 'bg-brand-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+            filter === 'APPLICATIONS' ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
           }`}
         >
           Applications
@@ -94,43 +94,39 @@ const NotificationsPage = () => {
       {/* Notifications Feed */}
       {loading ? (
         <div className="flex items-center justify-center min-h-[40vh]">
-          <div className="w-8 h-8 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin"></div>
+          <div className="w-6 h-6 border-2 border-zinc-200 border-t-zinc-900 rounded-full animate-spin"></div>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="card-soft p-12 text-center text-xs text-slate-500 space-y-2">
-          <Bell className="w-10 h-10 text-slate-300 mx-auto" />
-          <p className="font-semibold text-slate-700 text-sm">No notifications found.</p>
+        <div className="bg-white p-12 text-center text-xs text-zinc-500 space-y-2 rounded-xl border border-zinc-200/80">
+          <Bell className="w-8 h-8 text-zinc-300 mx-auto" />
+          <p className="font-medium text-zinc-800 text-sm">No notifications found.</p>
           <p>You're completely caught up with all updates.</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           {filtered.map((item) => (
             <div
               key={item.id}
-              className={`card-soft p-4 sm:p-5 flex items-start justify-between gap-4 transition ${
-                !item.is_read ? 'bg-brand-50/30 border-brand-200' : ''
+              className={`bg-white p-4 rounded-xl border transition flex items-start justify-between gap-4 ${
+                !item.is_read ? 'border-zinc-300 bg-zinc-50/40' : 'border-zinc-200/80'
               }`}
             >
               <div className="flex items-start gap-3">
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                  item.type === 'SUCCESS' ? 'bg-emerald-100 text-emerald-600' :
-                  item.type === 'APPLICATION' ? 'bg-indigo-100 text-indigo-600' :
-                  'bg-brand-100 text-brand-600'
-                }`}>
-                  <Bell className="w-4 h-4" />
+                <div className="w-8 h-8 rounded-lg bg-zinc-100 text-zinc-600 flex items-center justify-center flex-shrink-0 mt-0.5 border border-zinc-200">
+                  <Bell className="w-3.5 h-3.5" />
                 </div>
 
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <h4 className="text-xs font-bold text-slate-900">{item.title}</h4>
+                    <h4 className="text-xs font-semibold text-zinc-900">{item.title}</h4>
                     {!item.is_read && (
-                      <span className="text-[9px] font-extrabold uppercase tracking-wider bg-brand-600 text-white px-1.5 py-0.2 rounded">
+                      <span className="text-[9px] font-medium uppercase tracking-wider bg-zinc-900 text-white px-1.5 py-0.5 rounded">
                         New
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-slate-600 leading-relaxed">{item.message}</p>
-                  <span className="text-[10px] text-slate-400 block pt-1">
+                  <p className="text-xs text-zinc-600 leading-relaxed">{item.message}</p>
+                  <span className="text-[10px] text-zinc-400 block pt-0.5 font-mono">
                     {new Date(item.created_at).toLocaleString()}
                   </span>
                 </div>
@@ -139,10 +135,10 @@ const NotificationsPage = () => {
               {!item.is_read && (
                 <button
                   onClick={() => handleMarkRead(item.id)}
-                  className="p-1.5 text-slate-400 hover:text-brand-600 hover:bg-slate-100 rounded-lg transition flex-shrink-0"
+                  className="p-1.5 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-md transition flex-shrink-0"
                   title="Mark as read"
                 >
-                  <Check className="w-4 h-4" />
+                  <Check className="w-3.5 h-3.5" />
                 </button>
               )}
             </div>
@@ -154,3 +150,4 @@ const NotificationsPage = () => {
 };
 
 export default NotificationsPage;
+

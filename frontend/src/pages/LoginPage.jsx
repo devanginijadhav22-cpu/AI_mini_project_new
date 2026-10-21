@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { GraduationCap, Mail, Lock, AlertCircle, ArrowRight, Sparkles } from 'lucide-react';
+import { GraduationCap, Mail, Lock, AlertCircle, ArrowRight } from 'lucide-react';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -18,9 +18,9 @@ const LoginPage = () => {
     try {
       const user = await login(email, password);
       if (user.role === 'ADMIN') {
-        navigate('/admin/dashboard');
+        navigate('/admin/dashboard', { replace: true });
       } else {
-        navigate('/student/dashboard');
+        navigate('/student/dashboard', { replace: true });
       }
     } catch (err) {
       setError(err.response?.data?.detail || 'Invalid email or password. Please verify your credentials.');
@@ -35,74 +35,71 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-slate-50">
-      <div className="max-w-md w-full space-y-6">
+    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-[#fafafa]">
+      <div className="max-w-sm w-full space-y-6">
         <div className="text-center space-y-2">
-          <div className="w-12 h-12 rounded-2xl bg-brand-600 text-white flex items-center justify-center mx-auto shadow-md shadow-brand-500/20">
-            <GraduationCap className="w-7 h-7" />
+          <div className="w-10 h-10 rounded-lg bg-zinc-900 text-white flex items-center justify-center mx-auto">
+            <GraduationCap className="w-5 h-5" />
           </div>
-          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Student Portal Login</h2>
-          <p className="text-xs text-slate-500">Access your personalized eligibility results and applications</p>
+          <h1 className="text-xl font-semibold text-zinc-950 tracking-tight">Student Sign In</h1>
+          <p className="text-xs text-zinc-500">Access your eligibility score and applications</p>
         </div>
 
         {/* Demo Credentials Quick Button */}
-        <div className="p-3 bg-brand-50/70 border border-brand-200 rounded-xl text-xs flex items-center justify-between">
-          <div className="space-y-0.5">
-            <p className="font-semibold text-brand-900 flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5 text-brand-600" />
-              Demo Student Account
-            </p>
-            <p className="text-[11px] text-brand-700">student@scholarship.gov.in / student123</p>
+        <div className="p-3 bg-white border border-zinc-200 rounded-lg text-xs flex items-center justify-between">
+          <div>
+            <p className="font-medium text-zinc-900">Demo Student</p>
+            <p className="text-[11px] text-zinc-500 font-mono">student@scholarship.gov.in</p>
           </div>
           <button
             type="button"
             onClick={fillDemoStudent}
-            className="px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white text-[11px] font-bold rounded-lg transition"
+            className="px-2.5 py-1 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 text-xs font-medium rounded transition-colors"
           >
             Auto Fill
           </button>
         </div>
 
-        <div className="card-soft p-6 sm:p-8 space-y-5">
+        <div className="bg-white border border-zinc-200 rounded-lg p-6 space-y-4">
           {error && (
-            <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-700 flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <div className="p-3 rounded-md bg-rose-50 border border-rose-200 text-xs text-rose-700 flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
               <span>{error}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-3.5">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Email Address</label>
+              <label className="block text-xs font-medium text-zinc-700 mb-1">Email Address</label>
               <div className="relative">
-                <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                <Mail className="w-4 h-4 text-zinc-400 absolute left-3 top-2.5" />
                 <input
                   type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="student@scholarship.gov.in"
-                  className="w-full text-xs pl-9 pr-3 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition"
+                  placeholder="name@example.com"
+                  className="w-full text-xs pl-9 pr-3 py-2 rounded-md border border-zinc-300 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-colors"
                 />
               </div>
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-semibold text-slate-700">Password</label>
-                <Link to="/forgot-password" className="text-[11px] text-brand-600 hover:underline">
-                  Forgot Password?
+                <label className="block text-xs font-medium text-zinc-700">Password</label>
+                <Link to="/forgot-password" className="text-[11px] text-zinc-500 hover:text-zinc-900">
+                  Forgot?
                 </Link>
               </div>
               <div className="relative">
-                <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                <Lock className="w-4 h-4 text-zinc-400 absolute left-3 top-2.5" />
                 <input
                   type="password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full text-xs pl-9 pr-3 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition"
+                  className="w-full text-xs pl-9 pr-3 py-2 rounded-md border border-zinc-300 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-colors"
                 />
               </div>
             </div>
@@ -110,23 +107,23 @@ const LoginPage = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 px-4 text-xs font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-lg shadow-sm shadow-brand-500/25 flex items-center justify-center gap-2 disabled:opacity-50 transition"
+              className="w-full mt-2 py-2 px-4 text-xs font-medium text-white bg-zinc-900 hover:bg-zinc-800 rounded-md transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
             >
-              <span>{loading ? 'Authenticating...' : 'Sign In as Student'}</span>
+              <span>{loading ? 'Authenticating...' : 'Sign In'}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </form>
 
-          <div className="pt-2 text-center border-t border-slate-100 text-xs text-slate-500 space-y-2">
+          <div className="pt-3 text-center border-t border-zinc-100 text-xs text-zinc-500 space-y-1.5">
             <p>
               Don't have an account?{' '}
-              <Link to="/register" className="font-semibold text-brand-600 hover:text-brand-800">
-                Register here
+              <Link to="/register" className="font-medium text-zinc-900 hover:underline">
+                Register
               </Link>
             </p>
             <p>
-              Are you an official?{' '}
-              <Link to="/admin-login" className="font-semibold text-slate-700 hover:text-slate-900">
+              Authorized personnel?{' '}
+              <Link to="/admin-login" className="font-medium text-zinc-700 hover:text-zinc-950">
                 Administrator Login →
               </Link>
             </p>
