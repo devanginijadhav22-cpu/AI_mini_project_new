@@ -407,10 +407,17 @@ class RuleBasedExpertSystem:
         bc_cond = self.bc_engine.prove_goal("conditionally_eligible", initial_facts)
 
         # Step 4: Compile human-readable audit rules (maintaining API contract)
-        cgpa = float(student_dict.get("cgpa", 0.0))
-        income = float(student_dict.get("family_income", 1000000.0))
-        backlogs = int(student_dict.get("backlogs", 0))
-        attendance = float(student_dict.get("attendance", 0.0))
+        raw_cgpa = student_dict.get("cgpa")
+        cgpa = float(raw_cgpa) if raw_cgpa is not None else 0.0
+
+        raw_income = student_dict.get("family_income")
+        income = float(raw_income) if raw_income is not None else 1000000.0
+
+        raw_backlogs = student_dict.get("backlogs")
+        backlogs = int(raw_backlogs) if raw_backlogs is not None else 0
+
+        raw_attendance = student_dict.get("attendance")
+        attendance = float(raw_attendance) if raw_attendance is not None else 0.0
 
         passed_rules = []
         failed_rules = []
@@ -543,6 +550,115 @@ class RuleBasedExpertSystem:
                     "status": bc_full["status"],
                     "satisfied": bc_full["satisfied"],
                     "conditional_goal_satisfied": bc_cond["satisfied"]
+                }
+            }
+        }
+
+    def get_reasoning_diagnostic(self, student_dict: dict, target_goal: str = "generally_eligible") -> Dict[str, Any]:
+        """
+        Executes Forward and Backward Chaining and formats a comprehensive,
+        transparent diagnostic breakdown for the Admin Expert System & Reasoning Explorer.
+        """
+        initial_facts = self.extract_ground_facts(student_dict)
+
+        # 1. Forward Chaining
+        fc_result = self.fc_engine.infer(initial_facts)
+        derived_facts = fc_result["facts"]
+
+        # 2. Backward Chaining for chosen target goal (and primary baseline goals)
+        bc_proof = self.bc_engine.prove_goal(target_goal, initial_facts)
+        bc_full = self.bc_engine.prove_goal("generally_eligible", initial_facts)
+        bc_cond = self.bc_engine.prove_goal("conditionally_eligible", initial_facts)
+
+        # Unresolved / Unknown facts from initial extraction
+        unresolved_facts = [
+            {
+                "name": f.name,
+                "value": f.value,
+                "status": f.status,
+                "evidence": f.evidence,
+                "source": f.source
+            }
+            for f in initial_facts.values() if f.status == "UNKNOWN"
+        ]
+
+        # Serialized initial facts
+        ground_facts_list = [
+            {
+                "name": f.name,
+                "value": f.value,
+                "status": f.status,
+                "evidence": f.evidence,
+                "source": f.source
+            }
+            for f in initial_facts.values()
+        ]
+
+        # Serialized knowledge base rules
+        kb_rules = [
+            {
+                "id": r.id,
+                "name": r.name,
+                "antecedents": r.antecedents,
+                "consequent": r.consequent,
+                "description": r.description
+            }
+            for r in self.rules
+        ]
+
+        # Determine overall general verdict
+        is_fully_eligible = (
+            derived_facts.get("generally_eligible") is not None and
+            derived_facts["generally_eligible"].value is True
+        )
+        is_conditionally_eligible = (
+            derived_facts.get("conditionally_eligible") is not None and
+            derived_facts["conditionally_eligible"].value is True
+        )
+        if is_fully_eligible:
+            general_verdict = "ELIGIBLE"
+        elif is_conditionally_eligible:
+            general_verdict = "CONDITIONALLY_ELIGIBLE"
+        else:
+            general_verdict = "NOT_ELIGIBLE"
+
+        return {
+            "ground_facts": ground_facts_list,
+            "knowledge_base": kb_rules,
+            "unresolved_facts": unresolved_facts,
+            "general_verdict": general_verdict,
+            "forward_chaining": {
+                "fired_rules": fc_result["fired_rules"],
+                "derivation_trace": fc_result["derivation_trace"],
+                "total_iterations": fc_result["total_iterations"],
+                "derived_facts": [
+                    {
+                        "name": k,
+                        "value": v.value,
+                        "status": v.status,
+                        "evidence": v.evidence,
+                        "source": v.source
+                    }
+                    for k, v in derived_facts.items() if v.source == "INFERRED"
+                ],
+                "reached_generally_eligible": is_fully_eligible,
+                "reached_conditionally_eligible": is_conditionally_eligible
+            },
+            "backward_chaining": {
+                "target_goal": target_goal,
+                "status": bc_proof.get("status", "UNKNOWN"),
+                "satisfied": bc_proof.get("satisfied", False),
+                "is_ground_fact": bc_proof.get("is_ground_fact", False),
+                "proof_tree": bc_proof,
+                "primary_goals": {
+                    "generally_eligible": {
+                        "status": bc_full.get("status"),
+                        "satisfied": bc_full.get("satisfied")
+                    },
+                    "conditionally_eligible": {
+                        "status": bc_cond.get("status"),
+                        "satisfied": bc_cond.get("satisfied")
+                    }
                 }
             }
         }

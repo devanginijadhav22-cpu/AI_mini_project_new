@@ -25,6 +25,7 @@ import StudentManagement from './pages/StudentManagement';
 import ScholarshipManagement from './pages/ScholarshipManagement';
 import AnalyticsPage from './pages/AnalyticsPage';
 import MLModelPerformance from './pages/MLModelPerformance';
+import AdminExpertSystem from './pages/AdminExpertSystem';
 import SettingsPage from './pages/SettingsPage';
 import ErrorBoundary from './components/ErrorBoundary';
 
@@ -80,7 +81,7 @@ const AppLayout = ({ children }) => {
       <Navbar />
       <div className="flex-1 flex">
         {user && !isAuthPage && <Sidebar />}
-        <main className={`flex-1 p-4 sm:p-6 lg:p-8 ${!user || isAuthPage ? 'max-w-7xl mx-auto w-full' : ''}`}>
+        <main className={`flex-1 min-w-0 p-4 sm:p-6 lg:p-8 ${!user || isAuthPage ? 'max-w-7xl mx-auto w-full' : ''}`}>
           {children}
         </main>
       </div>
@@ -265,6 +266,14 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={['ADMIN']}>
                     <MLModelPerformance />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/expert-system"
+                element={
+                  <ProtectedRoute allowedRoles={['ADMIN']}>
+                    <AdminExpertSystem />
                   </ProtectedRoute>
                 }
               />

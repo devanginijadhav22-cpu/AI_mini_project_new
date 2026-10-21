@@ -55,7 +55,25 @@ const MLModelPerformance = () => {
   const models = perfData?.models_benchmarked || {};
   const bestModelKey = perfData?.best_model || "Gradient Boosting";
   const bestModelData = models[bestModelKey] || {};
-  const cm = bestModelData?.confusion_matrix || [[2074, 118], [511, 8297]]; // [[TN, FP], [FN, TP]]
+  const cm = (Array.isArray(bestModelData?.confusion_matrix) && bestModelData.confusion_matrix.length === 2)
+    ? bestModelData.confusion_matrix
+    : [[3275, 160], [381, 7184]];
+  const tn = cm[0]?.[0] ?? 0;
+  const fp = cm[0]?.[1] ?? 0;
+  const fn = cm[1]?.[0] ?? 0;
+  const tp = cm[1]?.[1] ?? 0;
+  const sensitivity = (tp + fn) > 0 ? `${((tp / (tp + fn)) * 100).toFixed(2)}%` : 'N/A';
+  const specificity = (tn + fp) > 0 ? `${((tn / (tn + fp)) * 100).toFixed(2)}%` : 'N/A';
+
+  const formatPercent = (val) => {
+    if (val === null || val === undefined || isNaN(val)) return 'N/A';
+    return `${(Number(val) * 100).toFixed(2)}%`;
+  };
+
+  const formatDecimal = (val, digits = 4) => {
+    if (val === null || val === undefined || isNaN(val)) return 'N/A';
+    return Number(val).toFixed(digits);
+  };
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -67,7 +85,7 @@ const MLModelPerformance = () => {
             <span>Machine Learning Pipeline</span>
           </div>
           <h1 className="text-xl font-semibold text-zinc-900 tracking-tight">AI Model Benchmark & Validation</h1>
-          <p className="text-xs text-zinc-500 mt-0.5">Comparative metrics across machine learning classifiers trained on 55,000+ benchmarked student records</p>
+          <p className="text-xs text-zinc-500 mt-0.5">Comparative metrics across machine learning classifiers trained on 55,000 benchmarked student records</p>
         </div>
 
         <button
@@ -95,7 +113,7 @@ const MLModelPerformance = () => {
             <h3 className="text-base font-semibold text-zinc-900 mt-0.5">{bestModelKey} Ensemble</h3>
           </div>
           <div className="text-xs text-zinc-500 font-mono">
-            Dataset: 55,000 Samples • Train/Test: 80/20 Stratified
+            Dataset: 55,000 Samples • Train/Test: 80/20 Stratified (11,000 Holdout)
           </div>
         </div>
 
@@ -103,31 +121,31 @@ const MLModelPerformance = () => {
           <div className="p-3 bg-zinc-50/60 rounded-lg border border-zinc-200/70">
             <span className="text-[10px] text-zinc-500 uppercase tracking-wider block">Accuracy</span>
             <span className="text-xl font-semibold text-zinc-900">
-              {(bestModelData.accuracy * 100).toFixed(1)}%
+              {formatPercent(bestModelData.accuracy)}
             </span>
           </div>
           <div className="p-3 bg-zinc-50/60 rounded-lg border border-zinc-200/70">
             <span className="text-[10px] text-zinc-500 uppercase tracking-wider block">Precision</span>
             <span className="text-xl font-semibold text-zinc-900">
-              {(bestModelData.precision * 100).toFixed(1)}%
+              {formatPercent(bestModelData.precision)}
             </span>
           </div>
           <div className="p-3 bg-zinc-50/60 rounded-lg border border-zinc-200/70">
             <span className="text-[10px] text-zinc-500 uppercase tracking-wider block">Recall</span>
             <span className="text-xl font-semibold text-zinc-900">
-              {(bestModelData.recall * 100).toFixed(1)}%
+              {formatPercent(bestModelData.recall)}
             </span>
           </div>
           <div className="p-3 bg-zinc-50/60 rounded-lg border border-zinc-200/70">
             <span className="text-[10px] text-zinc-500 uppercase tracking-wider block">F1 Score</span>
             <span className="text-xl font-semibold text-zinc-900">
-              {(bestModelData.f1_score * 100).toFixed(1)}%
+              {formatDecimal(bestModelData.f1_score, 4)}
             </span>
           </div>
           <div className="p-3 bg-zinc-50/60 rounded-lg border border-zinc-200/70 col-span-2 sm:col-span-1">
             <span className="text-[10px] text-zinc-500 uppercase tracking-wider block">ROC-AUC</span>
             <span className="text-xl font-semibold text-zinc-900">
-              {(bestModelData.roc_auc * 100).toFixed(1)}%
+              {formatDecimal(bestModelData.roc_auc, 4)}
             </span>
           </div>
         </div>
@@ -136,21 +154,21 @@ const MLModelPerformance = () => {
       {/* Model Benchmark Comparison Table */}
       <div className="bg-white rounded-xl border border-zinc-200/80 overflow-hidden space-y-3 p-5">
         <div>
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-700">Multi-Algorithm Benchmark Comparison</h3>
-          <p className="text-xs text-zinc-500">Evaluated on stratified holdout test split (11,000 samples) with 5-fold cross validation</p>
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-700">Machine Learning Model Benchmarks</h3>
+          <p className="text-xs text-zinc-500">Tested on a stratified holdout test split of 11,000 samples:</p>
         </div>
 
         <div className="overflow-x-auto pt-1">
           <table className="w-full text-left text-xs">
             <thead className="bg-zinc-50/70 border-b border-zinc-200 text-zinc-500 uppercase tracking-wider text-[10px]">
               <tr>
-                <th className="py-2.5 px-3 font-medium">Algorithm</th>
-                <th className="py-2.5 px-3 font-medium">Accuracy</th>
-                <th className="py-2.5 px-3 font-medium">Precision</th>
-                <th className="py-2.5 px-3 font-medium">Recall</th>
-                <th className="py-2.5 px-3 font-medium">F1 Score</th>
-                <th className="py-2.5 px-3 font-medium">ROC-AUC</th>
-                <th className="py-2.5 px-3 font-medium">5-Fold CV F1</th>
+                <th className="py-2.5 px-3 font-medium">Model</th>
+                <th className="py-2.5 px-3 font-medium text-right">Accuracy</th>
+                <th className="py-2.5 px-3 font-medium text-right">Precision</th>
+                <th className="py-2.5 px-3 font-medium text-right">Recall</th>
+                <th className="py-2.5 px-3 font-medium text-right">F1 Score</th>
+                <th className="py-2.5 px-3 font-medium text-right">ROC-AUC</th>
+                <th className="py-2.5 px-3 font-medium text-right">5-Fold CV F1</th>
                 <th className="py-2.5 px-3 font-medium text-right">Status</th>
               </tr>
             </thead>
@@ -159,26 +177,32 @@ const MLModelPerformance = () => {
                 const m = models[key];
                 const isBest = key === bestModelKey;
                 return (
-                  <tr key={key} className={isBest ? 'bg-zinc-50/60 font-medium' : 'hover:bg-zinc-50/40'}>
-                    <td className="py-2.5 px-3 flex items-center gap-2">
-                      <span className="font-semibold text-zinc-900">{key}</span>
-                      {isBest && (
-                        <span className="text-[9px] font-medium uppercase tracking-wider bg-zinc-900 text-white px-1.5 py-0.5 rounded">
-                          Production
+                  <tr key={key} className={isBest ? 'bg-zinc-50/90 font-medium border-l-2 border-l-zinc-900' : 'hover:bg-zinc-50/40'}>
+                    <td className="py-2.5 px-3">
+                      <div className="flex items-center gap-2">
+                        <span className={`font-semibold ${isBest ? 'text-zinc-950 font-bold' : 'text-zinc-900'}`}>
+                          {key}{isBest ? ' (Selected)' : ''}
                         </span>
-                      )}
+                        {isBest && (
+                          <span className="text-[9px] font-semibold uppercase tracking-wider bg-zinc-900 text-white px-1.5 py-0.5 rounded">
+                            Active
+                          </span>
+                        )}
+                      </div>
                     </td>
-                    <td className="py-2.5 px-3">{(m.accuracy * 100).toFixed(2)}%</td>
-                    <td className="py-2.5 px-3">{(m.precision * 100).toFixed(2)}%</td>
-                    <td className="py-2.5 px-3">{(m.recall * 100).toFixed(2)}%</td>
-                    <td className="py-2.5 px-3 font-semibold text-zinc-900">{(m.f1_score * 100).toFixed(2)}%</td>
-                    <td className="py-2.5 px-3">{(m.roc_auc * 100).toFixed(2)}%</td>
-                    <td className="py-2.5 px-3">{(m.cv_f1_mean * 100).toFixed(2)}%</td>
+                    <td className={`py-2.5 px-3 text-right ${isBest ? 'font-bold text-zinc-950' : ''}`}>{formatPercent(m.accuracy)}</td>
+                    <td className={`py-2.5 px-3 text-right ${isBest ? 'font-bold text-zinc-950' : ''}`}>{formatPercent(m.precision)}</td>
+                    <td className={`py-2.5 px-3 text-right ${isBest ? 'font-bold text-zinc-950' : ''}`}>{formatPercent(m.recall)}</td>
+                    <td className={`py-2.5 px-3 text-right ${isBest ? 'font-bold text-zinc-950' : 'font-semibold text-zinc-900'}`}>{formatDecimal(m.f1_score, 4)}</td>
+                    <td className={`py-2.5 px-3 text-right ${isBest ? 'font-bold text-zinc-950' : ''}`}>{formatDecimal(m.roc_auc, 4)}</td>
+                    <td className="py-2.5 px-3 text-right font-mono text-[11px] text-zinc-600">
+                      {m.cv_f1_mean != null ? `${formatDecimal(m.cv_f1_mean, 4)}` : 'N/A'}
+                    </td>
                     <td className="py-2.5 px-3 text-right">
                       <span className={`inline-flex items-center text-[10px] font-medium px-2 py-0.5 rounded-md border ${
-                        isBest ? 'bg-zinc-100 text-zinc-900 border-zinc-300' : 'bg-white text-zinc-500 border-zinc-200'
+                        isBest ? 'bg-zinc-900 text-white border-zinc-900 font-semibold' : 'bg-white text-zinc-500 border-zinc-200'
                       }`}>
-                        {isBest ? 'Active' : 'Benchmarked'}
+                        {isBest ? 'Selected' : 'Evaluated'}
                       </span>
                     </td>
                   </tr>
@@ -202,27 +226,27 @@ const MLModelPerformance = () => {
             <div className="grid grid-cols-2 gap-3 text-center">
               <div className="p-3 bg-white rounded-lg border border-zinc-200/80">
                 <span className="text-[10px] uppercase font-medium text-zinc-400 block">True Negatives (TN)</span>
-                <span className="text-xl font-semibold text-zinc-900">{cm[0][0]}</span>
+                <span className="text-xl font-semibold text-zinc-900">{tn}</span>
                 <span className="text-[10px] text-zinc-500 block mt-0.5">Correct Ineligible</span>
               </div>
               <div className="p-3 bg-white rounded-lg border border-zinc-200/80">
                 <span className="text-[10px] uppercase font-medium text-zinc-400 block">False Positives (FP)</span>
-                <span className="text-xl font-semibold text-zinc-700">{cm[0][1]}</span>
+                <span className="text-xl font-semibold text-zinc-700">{fp}</span>
                 <span className="text-[10px] text-zinc-500 block mt-0.5">Type I Error</span>
               </div>
               <div className="p-3 bg-white rounded-lg border border-zinc-200/80">
                 <span className="text-[10px] uppercase font-medium text-zinc-400 block">False Negatives (FN)</span>
-                <span className="text-xl font-semibold text-zinc-700">{cm[1][0]}</span>
+                <span className="text-xl font-semibold text-zinc-700">{fn}</span>
                 <span className="text-[10px] text-zinc-500 block mt-0.5">Type II Error</span>
               </div>
               <div className="p-3 bg-white rounded-lg border border-zinc-200/80">
                 <span className="text-[10px] uppercase font-medium text-zinc-400 block">True Positives (TP)</span>
-                <span className="text-xl font-semibold text-zinc-900">{cm[1][1]}</span>
+                <span className="text-xl font-semibold text-zinc-900">{tp}</span>
                 <span className="text-[10px] text-zinc-500 block mt-0.5">Correct Eligible</span>
               </div>
             </div>
             <p className="text-[11px] text-zinc-500 text-center font-mono">
-              Sensitivity: {((cm[1][1] / (cm[1][1] + cm[1][0])) * 100).toFixed(1)}% • Specificity: {((cm[0][0] / (cm[0][0] + cm[0][1])) * 100).toFixed(1)}%
+              Sensitivity: {sensitivity} • Specificity: {specificity}
             </p>
           </div>
         </div>

@@ -66,6 +66,8 @@ class ApplicationAdminView(BaseModel):
     status: str
     applied_at: datetime
     score_at_application: float
+    match_score: Optional[float] = None
+    eligibility_result_id: Optional[int] = None
     required_category: Optional[str] = "All"
     remarks: Optional[str] = None
     decision_remarks: Optional[str] = None

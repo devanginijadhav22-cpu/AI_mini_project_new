@@ -151,7 +151,9 @@ class Application(Base):
     scholarship_id = Column(Integer, ForeignKey("scholarships.id", ondelete="CASCADE"), nullable=False)
     status = Column(String(30), default="PENDING")  # PENDING, UNDER_REVIEW, NEEDS_INFORMATION, APPROVED, REJECTED
     applied_at = Column(DateTime, default=datetime.datetime.utcnow)
-    score_at_application = Column(Float, default=0.0)
+    score_at_application = Column(Float, default=0.0)  # General AI / Hybrid eligibility score at application
+    eligibility_result_id = Column(Integer, ForeignKey("eligibility_results.id", ondelete="SET NULL"), nullable=True)
+    match_score_at_application = Column(Float, nullable=True)  # Scholarship-specific match percentage at application
     remarks = Column(Text, nullable=True)  # Submission or decision remarks
     decision_remarks = Column(Text, nullable=True)  # Dedicated admin decision remarks
     reviewer_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
@@ -164,6 +166,7 @@ class Application(Base):
     user = relationship("User", foreign_keys=[user_id], back_populates="applications")
     scholarship = relationship("Scholarship", back_populates="applications")
     reviewer = relationship("User", foreign_keys=[reviewer_id])
+    eligibility_result = relationship("EligibilityResult", foreign_keys=[eligibility_result_id])
 
 
 class EligibilityResult(Base):

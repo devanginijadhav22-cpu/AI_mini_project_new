@@ -24,23 +24,26 @@ const Sidebar = () => {
     { to: '/admin/scholarships', label: 'Scholarship Schemes' },
     { to: '/admin/analytics', label: 'Analytics' },
     { to: '/admin/models', label: 'Model Health & XAI' },
+    { to: '/admin/expert-system', label: 'Expert System & Reasoning' },
     { to: '/settings', label: 'Settings' },
   ];
 
   const links = user.role === 'ADMIN' ? adminLinks : studentLinks;
 
   return (
-    <aside className="w-60 bg-white border-r border-zinc-200 hidden lg:flex flex-col py-5 px-3 min-h-[calc(100vh-4rem)] select-none">
-      <div className="space-y-6">
-        {/* Workspace Identity Profile Card */}
-        <div className="px-3.5 py-3 rounded-xl bg-zinc-50/90 border border-zinc-200/70 shadow-[0_1px_2px_rgba(0,0,0,0.03)] text-left">
-          <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest">
-            {user.role === 'ADMIN' ? 'Administrator' : 'Student Portal'}
-          </p>
-          <p className="text-sm font-semibold text-zinc-900 mt-1 leading-snug break-words">
-            {user.full_name}
-          </p>
-        </div>
+    <aside className="w-60 bg-white border-r border-zinc-200 hidden lg:flex flex-col py-5 px-3 select-none sticky top-14 sm:top-16 h-[calc(100dvh-3.5rem)] sm:h-[calc(100dvh-4rem)] overflow-y-auto shrink-0 z-30 self-start">
+      <div className={user.role === 'ADMIN' ? 'space-y-4' : 'space-y-6'}>
+        {/* Workspace Identity Profile Card (Student Portal only) */}
+        {user.role !== 'ADMIN' && (
+          <div className="px-3.5 py-3 rounded-xl bg-zinc-50/90 border border-zinc-200/70 shadow-[0_1px_2px_rgba(0,0,0,0.03)] text-left">
+            <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest">
+              Student Portal
+            </p>
+            <p className="text-sm font-semibold text-zinc-900 mt-1 leading-snug break-words">
+              {user.full_name}
+            </p>
+          </div>
+        )}
 
         {/* Navigation Section */}
         <div>

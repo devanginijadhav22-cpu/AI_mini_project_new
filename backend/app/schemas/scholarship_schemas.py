@@ -69,6 +69,7 @@ class ApplicationResponse(BaseModel):
     status: str
     applied_at: datetime
     score_at_application: float
+    match_score: Optional[float] = None
     remarks: Optional[str] = None
     decision_remarks: Optional[str] = None
     reviewed_at: Optional[datetime] = None

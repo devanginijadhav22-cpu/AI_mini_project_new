@@ -22,10 +22,8 @@ class MLService:
         return self.predictor.predict_single(student_dict)
 
     def get_model_performance(self) -> dict:
-        metrics_file = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-            "ml", "models", "model_metrics.json"
-        )
+        from ml.data_preprocessing import MODELS_DIR
+        metrics_file = os.path.join(MODELS_DIR, "model_metrics.json")
         if os.path.exists(metrics_file):
             with open(metrics_file, "r") as f:
                 return json.load(f)

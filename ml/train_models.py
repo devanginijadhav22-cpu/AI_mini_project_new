@@ -11,8 +11,12 @@ Saves the top-performing model and comprehensive metrics JSON.
 """
 
 import os
+import sys
 import json
 import time
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
@@ -84,9 +88,9 @@ def train_and_evaluate_models():
         f1 = float(f1_score(y_test, y_pred, zero_division=0))
         roc = float(roc_auc_score(y_test, y_proba))
         
-        # 5-fold cross validation score (subset for fast execution if needed, or full train)
+        # 5-fold cross validation score across training partition
         print("  Running 5-fold stratified cross validation...")
-        cv_scores = cross_val_score(clf, X_train[:15000], y_train[:15000], cv=cv, scoring="f1")
+        cv_scores = cross_val_score(clf, X_train, y_train, cv=cv, scoring="f1", n_jobs=-1)
         cv_mean = float(cv_scores.mean())
         cv_std = float(cv_scores.std())
         
@@ -180,6 +184,7 @@ def train_and_evaluate_models():
         "models_benchmarked": results,
         "feature_importance": feature_importance_list,
         "total_records": len(X_train) + len(X_test),
+        "train_size": len(X_train),
         "test_size": len(X_test),
         "num_features": len(feature_names),
         "policy_compliance": "Caste/Category Independent - Pure Academic & Socioeconomic Merit",

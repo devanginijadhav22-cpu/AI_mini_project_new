@@ -276,10 +276,18 @@ const ApplicationTracking = () => {
                       </span>
                     )}
                   </div>
-                  <div className="sm:text-right shrink-0">
-                    <span className="text-zinc-400 block text-[10px] uppercase font-medium">AI Eligibility Score</span>
-                    <span className="font-bold text-zinc-900 text-sm">{app.score_at_application}%</span>
-                    <span className="text-[10px] text-zinc-400 block mt-0.5">Category-Independent Advisory</span>
+                  <div className="sm:text-right shrink-0 flex flex-col sm:items-end gap-1">
+                    <div>
+                      <span className="text-zinc-400 block text-[10px] uppercase font-medium">AI/Hybrid Eligibility Score</span>
+                      <span className="font-bold text-zinc-900 text-sm">{app.score_at_application}%</span>
+                      <span className="text-[10px] text-zinc-400 block mt-0.5">General Institutional Assessment</span>
+                    </div>
+                    {app.match_score != null && (
+                      <div className="pt-1 border-t border-zinc-200/60 w-full sm:text-right">
+                        <span className="text-zinc-400 block text-[10px] uppercase font-medium">Scholarship Match</span>
+                        <span className="font-semibold text-emerald-700 text-xs">{app.match_score}%</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

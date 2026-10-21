@@ -23,12 +23,18 @@ from backend.app.schemas.admin_schemas import (
 )
 from backend.app.auth.jwt_handler import require_role
 from backend.app.services.ml_service import MLService
+from backend.app.services.recommendation_service import ScholarshipRecommendationEngine
+from backend.app.services.rule_engine import RuleBasedExpertSystem
+from backend.app.services.hybrid_expert_service import HybridExpertService
 from backend.app.routes.student_routes import calculate_completion
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/admin", tags=["Admin Operations"])
 ml_service = MLService.get_instance()
+expert_system = RuleBasedExpertSystem()
+hybrid_service = HybridExpertService()
 
 
 @router.get("/dashboard", response_model=AdminDashboardStats)
@@ -149,6 +155,27 @@ def get_all_applications(
         rev = a.reviewer
         doc_count = db.query(StudentDocument).filter(StudentDocument.user_id == a.user_id).count()
 
+        match_score = a.match_score_at_application
+        if match_score is None and u and s:
+            prof = u.profile
+            acad = u.academic_record
+            fin = u.financial_record
+            s_dict = {
+                "cgpa": acad.cgpa if acad and acad.cgpa is not None else 8.0,
+                "family_income": fin.family_income if fin and fin.family_income is not None else 250000.0,
+                "backlogs": acad.backlogs if acad and acad.backlogs is not None else 0,
+                "category": prof.category if prof and prof.category else None,
+                "gender": prof.gender if prof and prof.gender else "Male",
+                "education_level": acad.education_level if acad and acad.education_level else "Undergraduate",
+                "attendance": acad.attendance if acad and acad.attendance is not None else 85.0,
+                "course": acad.course if acad and acad.course else "",
+                "disability": prof.disability if prof and prof.disability is not None else 0
+            }
+            recs = ScholarshipRecommendationEngine.get_recommendations(s_dict, db, ml_prob=0.85)
+            t = next((r for r in recs if r["id"] == s.id), None)
+            if t:
+                match_score = t["match_percentage"]
+
         results.append({
             "id": a.id,
             "student_id": u.id if u else 0,
@@ -162,6 +189,8 @@ def get_all_applications(
             "status": a.status,
             "applied_at": a.applied_at,
             "score_at_application": a.score_at_application,
+            "match_score": match_score,
+            "eligibility_result_id": a.eligibility_result_id,
             "required_category": s.required_category if s else "All",
             "remarks": a.remarks,
             "decision_remarks": a.decision_remarks or a.remarks,
@@ -210,27 +239,59 @@ def get_application_detail(
             "download_url": f"/api/documents/{d.id}/download"
         })
 
-    # Latest eligibility assessment for this student
-    latest_eval = db.query(EligibilityResult).filter(
-        EligibilityResult.user_id == app.user_id
-    ).order_by(EligibilityResult.created_at.desc()).first()
+    # Saved eligibility assessment associated with this application
+    saved_eval = None
+    if app.eligibility_result_id:
+        saved_eval = db.query(EligibilityResult).filter(EligibilityResult.id == app.eligibility_result_id).first()
+    if not saved_eval and app.applied_at:
+        saved_eval = db.query(EligibilityResult).filter(
+            EligibilityResult.user_id == app.user_id,
+            EligibilityResult.created_at <= app.applied_at
+        ).order_by(EligibilityResult.created_at.desc()).first()
+    if not saved_eval:
+        saved_eval = db.query(EligibilityResult).filter(
+            EligibilityResult.user_id == app.user_id
+        ).order_by(EligibilityResult.created_at.desc()).first()
 
     pos_factors = []
     neg_factors = []
     tips = []
-    if latest_eval:
+    if saved_eval:
         try:
-            pos_factors = json.loads(latest_eval.positive_factors_json) if latest_eval.positive_factors_json else []
+            pos_factors = json.loads(saved_eval.positive_factors_json) if saved_eval.positive_factors_json else []
         except Exception:
             pos_factors = []
         try:
-            neg_factors = json.loads(latest_eval.negative_factors_json) if latest_eval.negative_factors_json else []
+            neg_factors = json.loads(saved_eval.negative_factors_json) if saved_eval.negative_factors_json else []
         except Exception:
             neg_factors = []
         try:
-            tips = json.loads(latest_eval.improvement_tips_json) if latest_eval.improvement_tips_json else []
+            tips = json.loads(saved_eval.improvement_tips_json) if saved_eval.improvement_tips_json else []
         except Exception:
             tips = []
+
+    # Scholarship-specific match percentage
+    match_score = app.match_score_at_application
+    if match_score is None and sch and student:
+        try:
+            s_dict = {
+                "cgpa": acad.cgpa if acad and acad.cgpa is not None else 8.0,
+                "family_income": fin.family_income if fin and fin.family_income is not None else 250000.0,
+                "backlogs": acad.backlogs if acad and acad.backlogs is not None else 0,
+                "category": prof.category if prof and prof.category else None,
+                "gender": prof.gender if prof and prof.gender else "Male",
+                "education_level": acad.education_level if acad and acad.education_level else "Undergraduate",
+                "attendance": acad.attendance if acad and acad.attendance is not None else 85.0,
+                "course": acad.course if acad and acad.course else "",
+                "disability": prof.disability if prof and prof.disability is not None else 0
+            }
+            p_val = saved_eval.ml_probability if saved_eval else 0.85
+            recs = ScholarshipRecommendationEngine.get_recommendations(s_dict, db, ml_prob=p_val)
+            t = next((r for r in recs if r["id"] == sch.id), None)
+            if t:
+                match_score = t["match_percentage"]
+        except Exception:
+            match_score = None
 
     # Criteria comparison for this specific scholarship
     cgpa_val = acad.cgpa if acad and acad.cgpa is not None else 0.0
@@ -292,6 +353,8 @@ def get_application_detail(
             "status": app.status,
             "applied_at": app.applied_at,
             "score_at_application": app.score_at_application,
+            "match_score": match_score,
+            "eligibility_result_id": app.eligibility_result_id,
             "remarks": app.remarks,
             "decision_remarks": app.decision_remarks or app.remarks,
             "reviewer_id": app.reviewer_id,
@@ -355,6 +418,7 @@ def get_application_detail(
             "amount": sch.amount if sch else 0.0,
             "deadline": sch.deadline if sch else "N/A",
             "category": sch.category if sch else "General",
+            "match_percentage": match_score,
             "min_cgpa": sch.min_cgpa if sch else 6.0,
             "max_income": sch.max_income if sch else 800000.0,
             "max_backlogs": sch.max_backlogs if sch else 1,
@@ -366,14 +430,15 @@ def get_application_detail(
         },
         "criteria_evaluation": criteria_evaluation,
         "eligibility_assessment": {
-            "rule_status": latest_eval.rule_status if latest_eval else "NOT_ASSESSED",
-            "ml_probability": latest_eval.ml_probability if latest_eval else 0.0,
-            "hybrid_score": latest_eval.hybrid_score if latest_eval else 0.0,
-            "final_verdict": latest_eval.final_verdict if latest_eval else "Not Assessed",
+            "id": saved_eval.id if saved_eval else None,
+            "rule_status": saved_eval.rule_status if saved_eval else "NOT_ASSESSED",
+            "ml_probability": saved_eval.ml_probability if saved_eval else 0.0,
+            "hybrid_score": app.score_at_application if app.score_at_application is not None else (saved_eval.hybrid_score if saved_eval else 0.0),
+            "final_verdict": saved_eval.final_verdict if saved_eval else "Not Assessed",
             "positive_factors": pos_factors,
             "negative_factors": neg_factors,
             "improvement_tips": tips,
-            "evaluated_at": latest_eval.created_at if latest_eval else None,
+            "evaluated_at": saved_eval.created_at if saved_eval else None,
             "rule_engine_description": "Deterministic rule engine evaluated baseline academic and financial constraints independently of protected demographic traits.",
             "gradient_boosting_description": "Gradient Boosting classifier estimated probability of competitive scholarship selection based on performance, income, attendance, and achievements.",
             "hybrid_explanation": "Combines rule pass/fail logic with ML propensity to yield objective advisory guidance for committee decision-making."
@@ -720,3 +785,466 @@ def db_inspect_results(
         }
         for r in results
     ]
+
+
+# =============================================================================
+# Expert System & Reasoning Explorer Diagnostics (Admin Read-Only)
+# =============================================================================
+
+class ExpertSystemDiagnosticRequest(BaseModel):
+    student_id: Optional[int] = None
+    target_goal: Optional[str] = "generally_eligible"
+    custom_profile: Optional[Dict[str, Any]] = None
+    persona_id: Optional[str] = None
+
+
+SAMPLE_PERSONAS = [
+    {
+        "id": "persona_1",
+        "name": "Aarav Patel (Exemplary Scholar - Full Compliance)",
+        "badge": "Full Eligibility",
+        "badge_color": "emerald",
+        "summary": "CGPA 9.1, Income Rs 3.2L, 0 Backlogs, 92% Attendance. Satisfies all statutory baseline rules.",
+        "expected_fc": "Fires R1, R2, R4, R6 to derive generally_eligible (R8)",
+        "expected_bc": "generally_eligible: SATISFIED (All subproofs verified)",
+        "profile": {
+            "name": "Aarav Patel",
+            "email": "aarav.patel@example.com",
+            "age": 20,
+            "gender": "Male",
+            "state": "Maharashtra",
+            "category": "OBC",
+            "disability": 0,
+            "rural_urban": "Urban",
+            "first_generation": 0,
+            "institution_type": "Government",
+            "hostel_day_scholar": "Day Scholar",
+            "education_level": "Undergraduate",
+            "course": "Computer Science & IT",
+            "year": 3,
+            "year_of_study": 3,
+            "cgpa": 9.1,
+            "percentage": 91.0,
+            "backlogs": 0,
+            "attendance": 92.0,
+            "previous_scholarship": 0,
+            "family_income": 320000.0,
+            "family_size": 4,
+            "parent_occupation": "Private Service",
+            "earning_members": 1,
+            "financial_dependency": "Yes",
+            "sports_achievement": "State",
+            "academic_achievement": "Dean's List",
+            "extracurricular_score": 85.0,
+            "certifications_count": 4,
+            "leadership_experience": 1
+        }
+    },
+    {
+        "id": "persona_2",
+        "name": "Priya Sharma (High Merit with Income Exemption)",
+        "badge": "Exemption Applied",
+        "badge_color": "blue",
+        "summary": "Income Rs 12.0L > Rs 8.0L ceiling, but CGPA 8.85 >= 8.5 triggers statutory waiver R3_FIN_EXEMPT.",
+        "expected_fc": "Fires R1, R3, R4, R6 to derive financial_criteria_satisfied & generally_eligible (R8)",
+        "expected_bc": "generally_eligible: SATISFIED via R3_FIN_EXEMPT waiver subproof",
+        "profile": {
+            "name": "Priya Sharma",
+            "email": "priya.sharma@example.com",
+            "age": 21,
+            "gender": "Female",
+            "state": "Delhi",
+            "category": "General",
+            "disability": 0,
+            "rural_urban": "Urban",
+            "first_generation": 0,
+            "institution_type": "Government",
+            "hostel_day_scholar": "Day Scholar",
+            "education_level": "Undergraduate",
+            "course": "Mechanical Engineering",
+            "year": 4,
+            "year_of_study": 4,
+            "cgpa": 8.85,
+            "percentage": 88.5,
+            "backlogs": 0,
+            "attendance": 86.5,
+            "previous_scholarship": 0,
+            "family_income": 1200000.0,
+            "family_size": 3,
+            "parent_occupation": "Salaried Professional",
+            "earning_members": 2,
+            "financial_dependency": "Yes",
+            "sports_achievement": "None",
+            "academic_achievement": "Gold Medalist",
+            "extracurricular_score": 75.0,
+            "certifications_count": 3,
+            "leadership_experience": 1
+        }
+    },
+    {
+        "id": "persona_3",
+        "name": "Rahul Verma (Marginal Backlog - Conditional)",
+        "badge": "Conditional Backlog",
+        "badge_color": "amber",
+        "summary": "CGPA 7.4, Income Rs 4.5L, 1 Active Backlog, 81% Attendance. Conditionally permitted under academic probation.",
+        "expected_fc": "Fires R1, R2, R5, R6 to derive conditionally_eligible (R9)",
+        "expected_bc": "generally_eligible: UNSATISFIED (R4 failed), conditionally_eligible: SATISFIED (R9 verified)",
+        "profile": {
+            "name": "Rahul Verma",
+            "email": "rahul.verma@example.com",
+            "age": 20,
+            "gender": "Male",
+            "state": "Uttar Pradesh",
+            "category": "General",
+            "disability": 0,
+            "rural_urban": "Semi-Urban",
+            "first_generation": 1,
+            "institution_type": "Govt-Aided",
+            "hostel_day_scholar": "Hosteller",
+            "education_level": "Undergraduate",
+            "course": "Electrical Engineering",
+            "year": 3,
+            "year_of_study": 3,
+            "cgpa": 7.4,
+            "percentage": 74.0,
+            "backlogs": 1,
+            "attendance": 81.0,
+            "previous_scholarship": 0,
+            "family_income": 450000.0,
+            "family_size": 5,
+            "parent_occupation": "Agriculture",
+            "earning_members": 1,
+            "financial_dependency": "Yes",
+            "sports_achievement": "District",
+            "academic_achievement": "None",
+            "extracurricular_score": 60.0,
+            "certifications_count": 1,
+            "leadership_experience": 0
+        }
+    },
+    {
+        "id": "persona_4",
+        "name": "Ananya Iyer (Borderline Attendance - Attestation Needed)",
+        "badge": "Conditional Attendance",
+        "badge_color": "amber",
+        "summary": "Attendance 68.0% in [65%, 75%). CGPA 7.6, 0 Backlogs. Requires medical or institutional condonation.",
+        "expected_fc": "Fires R1, R2, R4, R7 to derive conditionally_eligible (R10)",
+        "expected_bc": "generally_eligible: UNSATISFIED (R6 failed), conditionally_eligible: SATISFIED (R10 verified)",
+        "profile": {
+            "name": "Ananya Iyer",
+            "email": "ananya.iyer@example.com",
+            "age": 19,
+            "gender": "Female",
+            "state": "Karnataka",
+            "category": "General",
+            "disability": 0,
+            "rural_urban": "Urban",
+            "first_generation": 0,
+            "institution_type": "Government",
+            "hostel_day_scholar": "Day Scholar",
+            "education_level": "Undergraduate",
+            "course": "Civil Engineering",
+            "year": 2,
+            "year_of_study": 2,
+            "cgpa": 7.6,
+            "percentage": 76.0,
+            "backlogs": 0,
+            "attendance": 68.0,
+            "previous_scholarship": 0,
+            "family_income": 520000.0,
+            "family_size": 4,
+            "parent_occupation": "Business",
+            "earning_members": 1,
+            "financial_dependency": "Yes",
+            "sports_achievement": "College",
+            "academic_achievement": "None",
+            "extracurricular_score": 70.0,
+            "certifications_count": 2,
+            "leadership_experience": 1
+        }
+    },
+    {
+        "id": "persona_5",
+        "name": "Vikram Rao (Ineligible - High Backlogs & Low CGPA)",
+        "badge": "Ineligible",
+        "badge_color": "rose",
+        "summary": "CGPA 5.2 < 6.0, 2 Active Backlogs > 1, Attendance 58.0% < 65%. Fails all primary statutory thresholds.",
+        "expected_fc": "No rule fires. No eligibility fact derived. General verdict: NOT_ELIGIBLE",
+        "expected_bc": "generally_eligible: UNSATISFIED, conditionally_eligible: UNSATISFIED",
+        "profile": {
+            "name": "Vikram Rao",
+            "email": "vikram.rao@example.com",
+            "age": 22,
+            "gender": "Male",
+            "state": "Madhya Pradesh",
+            "category": "General",
+            "disability": 0,
+            "rural_urban": "Rural",
+            "first_generation": 1,
+            "institution_type": "Private",
+            "hostel_day_scholar": "Hosteller",
+            "education_level": "Undergraduate",
+            "course": "Commerce",
+            "year": 3,
+            "year_of_study": 3,
+            "cgpa": 5.2,
+            "percentage": 52.0,
+            "backlogs": 2,
+            "attendance": 58.0,
+            "previous_scholarship": 0,
+            "family_income": 950000.0,
+            "family_size": 5,
+            "parent_occupation": "Self-Employed",
+            "earning_members": 1,
+            "financial_dependency": "Yes",
+            "sports_achievement": "None",
+            "academic_achievement": "None",
+            "extracurricular_score": 40.0,
+            "certifications_count": 0,
+            "leadership_experience": 0
+        }
+    },
+    {
+        "id": "persona_6",
+        "name": "Sneha Kulkarni (Missing Income Fact - UNKNOWN Goal)",
+        "badge": "Unknown / Unresolved",
+        "badge_color": "purple",
+        "summary": "CGPA 8.4, 0 Backlogs, 88% Attendance, but family_income is None (missing). Demonstrates UNKNOWN handling.",
+        "expected_fc": "Fires R1 and R4. Halts without financial criteria. generally_eligible cannot be inferred.",
+        "expected_bc": "generally_eligible: UNKNOWN (Missing ground fact: income_need_passed)",
+        "profile": {
+            "name": "Sneha Kulkarni",
+            "email": "sneha.kulkarni@example.com",
+            "age": 20,
+            "gender": "Female",
+            "state": "Maharashtra",
+            "category": "EWS",
+            "disability": 0,
+            "rural_urban": "Rural",
+            "first_generation": 1,
+            "institution_type": "Government",
+            "hostel_day_scholar": "Hosteller",
+            "education_level": "Undergraduate",
+            "course": "Biotechnology",
+            "year": 3,
+            "year_of_study": 3,
+            "cgpa": 8.4,
+            "percentage": 84.0,
+            "backlogs": 0,
+            "attendance": 88.0,
+            "previous_scholarship": 0,
+            "family_income": None,
+            "family_size": 4,
+            "parent_occupation": "Farming",
+            "earning_members": 1,
+            "financial_dependency": "Yes",
+            "sports_achievement": "State",
+            "academic_achievement": "Merit Scholar",
+            "extracurricular_score": 80.0,
+            "certifications_count": 3,
+            "leadership_experience": 1
+        }
+    }
+]
+
+
+def execute_reasoning_diagnostic(
+    student_id: Optional[int] = None,
+    persona_id: Optional[str] = None,
+    custom_profile: Optional[Dict[str, Any]] = None,
+    target_goal: str = "generally_eligible",
+    db: Session = None
+) -> Dict[str, Any]:
+    selected_persona_id = persona_id
+    student_dict = None
+    profile_label = "Demo Scholar Profile"
+    is_live_student = False
+
+    if student_id:
+        user = db.query(User).filter(User.id == student_id, User.role == "STUDENT").first()
+        if user:
+            is_live_student = True
+            profile_label = f"{user.full_name} ({user.email})"
+            prof = user.profile
+            acad = user.academic_record
+            fin = user.financial_record
+            ach = user.achievements
+            if prof and acad and fin and ach:
+                from backend.app.routes.eligibility_routes import prepare_student_features
+                student_dict = prepare_student_features(prof, acad, fin, ach, user.id)
+            else:
+                student_dict = {
+                    "name": user.full_name,
+                    "email": user.email,
+                    "cgpa": acad.cgpa if acad else None,
+                    "family_income": fin.family_income if fin else None,
+                    "backlogs": acad.backlogs if acad else None,
+                    "attendance": acad.attendance if acad else None,
+                    "category": prof.category if prof else None,
+                    "gender": prof.gender if prof else "Male",
+                    "course": acad.course if acad else "General",
+                    "education_level": acad.education_level if acad else "Undergraduate",
+                    "disability": prof.disability if prof else 0
+                }
+    elif selected_persona_id:
+        matching = next((p for p in SAMPLE_PERSONAS if p["id"] == selected_persona_id), None)
+        if matching:
+            student_dict = matching["profile"].copy()
+            profile_label = matching["name"]
+    elif custom_profile:
+        student_dict = custom_profile.copy()
+        profile_label = custom_profile.get("name", "Custom Admin Input")
+
+    if student_dict is None:
+        selected_persona_id = "persona_1"
+        student_dict = SAMPLE_PERSONAS[0]["profile"].copy()
+        profile_label = SAMPLE_PERSONAS[0]["name"]
+
+    target_goal = target_goal or "generally_eligible"
+
+    # 1. Execute Symbolic Rule Engine Diagnostic
+    diag = expert_system.get_reasoning_diagnostic(student_dict, target_goal=target_goal)
+
+    # 2. Execute Hybrid Expert Assessment (Rules + ML)
+    hybrid_result = None
+    try:
+        hybrid_result = hybrid_service.evaluate_student(student_dict)
+    except Exception as e:
+        logger.warning(f"Diagnostic hybrid evaluation fallback: {e}")
+        rule_eval = expert_system.evaluate_general_baseline(student_dict)
+        rule_score = 100.0 if rule_eval["rule_status"] == "ELIGIBLE" else (70.0 if rule_eval["rule_status"] == "CONDITIONALLY_ELIGIBLE" else 30.0)
+        hybrid_result = {
+            "rule_status": rule_eval["rule_status"],
+            "rule_checks": rule_eval,
+            "rule_score": rule_score,
+            "ml_probability": 0.85,
+            "ml_percentage": 85.0,
+            "hybrid_score": round(0.55 * 85.0 + 0.45 * rule_score, 1),
+            "final_verdict": "Likely Eligible",
+            "combination_rationale": "Hybrid assessment calculated with standard 55% ML + 45% Rule weights."
+        }
+
+    # 3. Evaluate Published Scholarship Schemes
+    ml_prob = hybrid_result.get("ml_probability", 0.85)
+    recommendations = ScholarshipRecommendationEngine.get_recommendations(
+        student_dict, db, ml_prob=ml_prob
+    )
+
+    scholarships = db.query(Scholarship).all()
+    sch_lookup = {s.id: s for s in scholarships}
+
+    scholarship_evaluations = []
+    for rec in recommendations:
+        s = sch_lookup.get(rec["id"])
+        scholarship_evaluations.append({
+            "scholarship_id": rec["id"],
+            "scholarship_name": rec["title"],
+            "provider": rec.get("provider", s.provider if s else ""),
+            "amount": rec.get("amount", s.amount if s else 0),
+            "category": rec.get("category", s.category if s else ""),
+            "min_cgpa": s.min_cgpa if s else 6.0,
+            "max_income": s.max_income if s else 800000.0,
+            "max_backlogs": s.max_backlogs if s else 1,
+            "required_category": (s.required_category or "All") if s else "All",
+            "required_education_level": (s.required_education_level or "All") if s else "All",
+            "is_eligible": rec["eligibility_status"] == "Eligible",
+            "status": rec["eligibility_status"],
+            "missing_requirements": rec["missing_requirements"],
+            "match_percentage": rec["match_percentage"]
+        })
+
+    # Available students for dropdown
+    all_students = db.query(User).filter(User.role == "STUDENT").order_by(User.created_at.desc()).limit(30).all()
+    student_options = [
+        {"id": u.id, "name": u.full_name, "email": u.email}
+        for u in all_students
+    ]
+
+    return {
+        "active_profile": {
+            "label": profile_label,
+            "is_live_student": is_live_student,
+            "persona_id": selected_persona_id,
+            "student_id": student_id,
+            "attributes": {
+                "name": student_dict.get("name"),
+                "email": student_dict.get("email"),
+                "cgpa": student_dict.get("cgpa"),
+                "family_income": student_dict.get("family_income"),
+                "backlogs": student_dict.get("backlogs"),
+                "attendance": student_dict.get("attendance"),
+                "category": student_dict.get("category"),
+                "gender": student_dict.get("gender"),
+                "course": student_dict.get("course"),
+                "education_level": student_dict.get("education_level")
+            }
+        },
+        "sample_personas": SAMPLE_PERSONAS,
+        "available_students": student_options,
+        "knowledge_base": diag["knowledge_base"],
+        "ground_facts": diag["ground_facts"],
+        "unresolved_facts": diag["unresolved_facts"],
+        "forward_chaining": diag["forward_chaining"],
+        "backward_chaining": diag["backward_chaining"],
+        "three_tier_evaluation": {
+            "tier1_general_hybrid_score": {
+                "hybrid_score": hybrid_result.get("hybrid_score"),
+                "rule_score": hybrid_result.get("rule_score"),
+                "rule_status": hybrid_result.get("rule_status"),
+                "ml_probability": hybrid_result.get("ml_probability"),
+                "ml_percentage": hybrid_result.get("ml_percentage"),
+                "verdict": hybrid_result.get("final_verdict"),
+                "weights": {"rule_engine": "45%", "gradient_boosting_ml": "55%"},
+                "definition": "General institutional merit and statutory compliance across 24 features and baseline thresholds. NOT the probability of winning a specific scholarship."
+            },
+            "tier2_scholarship_match_percentage": {
+                "formula": "35% ML Profile + 35% Academic Fit + 20% Financial Need + 10% Statutory/Affirmative Action Alignment",
+                "definition": "Multi-criteria compatibility score against each individual scholarship's published target profile."
+            },
+            "tier3_final_eligibility_status": {
+                "definition": "Crisp gatekeeper status (Eligible, Conditionally Eligible, or Not Eligible) enforced by published scheme constraints."
+            }
+        },
+        "scholarship_evaluations": scholarship_evaluations
+    }
+
+
+@router.get("/expert-system/diagnostics")
+def get_expert_system_diagnostics(
+    student_id: Optional[int] = Query(None),
+    persona_id: Optional[str] = Query(None),
+    target_goal: Optional[str] = Query("generally_eligible"),
+    payload: dict = Depends(require_role(["ADMIN"])),
+    db: Session = Depends(get_db)
+):
+    """
+    Read-only diagnostic inspection for the Expert System & Reasoning Explorer.
+    Admin authorized.
+    """
+    return execute_reasoning_diagnostic(
+        student_id=student_id,
+        persona_id=persona_id,
+        target_goal=target_goal,
+        db=db
+    )
+
+
+@router.post("/expert-system/diagnostics")
+def post_expert_system_diagnostics(
+    req: ExpertSystemDiagnosticRequest,
+    payload: dict = Depends(require_role(["ADMIN"])),
+    db: Session = Depends(get_db)
+):
+    """
+    Evaluates Forward Chaining and Backward Chaining dynamically for any
+    student ID, pre-configured persona, or custom sandbox profile.
+    Admin authorized. Safe and completely read-only.
+    """
+    return execute_reasoning_diagnostic(
+        student_id=req.student_id,
+        persona_id=req.persona_id,
+        custom_profile=req.custom_profile,
+        target_goal=req.target_goal or "generally_eligible",
+        db=db
+    )
+

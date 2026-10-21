@@ -258,7 +258,7 @@ const AdminApplications = () => {
                   <th className="py-3 px-4">Scholarship Scheme</th>
                   <th className="py-3 px-4">Grant</th>
                   <th className="py-3 px-4">Submitted</th>
-                  <th className="py-3 px-4">AI Score</th>
+                  <th className="py-3 px-4">Scholarship Match</th>
                   <th className="py-3 px-4">Status</th>
                   <th className="py-3 px-4 text-right">Action</th>
                 </tr>
@@ -290,7 +290,7 @@ const AdminApplications = () => {
                       </td>
                       <td className="py-3 px-4">
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-zinc-100 text-zinc-800 border border-zinc-200">
-                          {app.score_at_application}%
+                          {app.match_score != null ? `${app.match_score}%` : 'N/A'}
                         </span>
                       </td>
                       <td className="py-3 px-4 whitespace-nowrap">

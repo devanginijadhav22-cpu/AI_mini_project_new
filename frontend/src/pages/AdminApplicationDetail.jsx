@@ -376,9 +376,16 @@ const AdminApplicationDetail = () => {
             </div>
             <div className="h-8 w-px bg-zinc-200"></div>
             <div>
-              <span className="text-[10px] uppercase font-semibold text-zinc-400 block">AI Score at Submission</span>
+              <span className="text-[10px] uppercase font-semibold text-zinc-400 block">AI/Hybrid Score</span>
               <span className="font-bold text-zinc-900">
                 {application.score_at_application != null ? `${application.score_at_application}%` : 'N/A'}
+              </span>
+            </div>
+            <div className="h-8 w-px bg-zinc-200"></div>
+            <div>
+              <span className="text-[10px] uppercase font-semibold text-zinc-400 block">Scholarship Match</span>
+              <span className="font-bold text-emerald-700">
+                {application.match_score != null ? `${application.match_score}%` : (scholarship.match_percentage != null ? `${scholarship.match_percentage}%` : 'N/A')}
               </span>
             </div>
           </div>
@@ -530,23 +537,23 @@ const AdminApplicationDetail = () => {
             </div>
           </div>
 
-          {/* SECTION 2: AI Eligibility Advisory Evaluation */}
+          {/* SECTION 2: General AI/Hybrid Eligibility Assessment */}
           <div className="bg-white rounded-2xl border border-zinc-200/80 p-5 shadow-sm space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-zinc-100 gap-2">
               <div>
                 <h2 className="font-semibold text-zinc-900 text-xs uppercase tracking-wider flex items-center gap-1.5">
                   <Award className="w-4 h-4 text-zinc-700" />
-                  <span>2. AI Eligibility Advisory Evaluation</span>
+                  <span>2. General AI/Hybrid Eligibility Assessment</span>
                 </h2>
                 <p className="text-[10px] text-zinc-500 mt-0.5">
-                  Category-independent general qualification synthesized from symbolic rule engine and Gradient Boosting model.
+                  General institutional qualification (Rules 45% + Gradient Boosting 55%) assessed at application time. Independent of specific scheme criteria.
                 </p>
               </div>
 
               <div className="text-left sm:text-right bg-zinc-50 sm:bg-transparent p-2 sm:p-0 rounded-lg">
-                <span className="text-[10px] font-semibold text-zinc-400 uppercase block">Hybrid Score</span>
+                <span className="text-[10px] font-semibold text-zinc-400 uppercase block">General AI/Hybrid Score</span>
                 <span className="text-lg font-bold text-zinc-900">
-                  {assessment.hybrid_score != null ? `${assessment.hybrid_score}%` : 'N/A'}
+                  {assessment.hybrid_score != null ? `${assessment.hybrid_score}%` : (application.score_at_application != null ? `${application.score_at_application}%` : 'N/A')}
                 </span>
               </div>
             </div>
@@ -667,6 +674,24 @@ const AdminApplicationDetail = () => {
               }`}>
                 {criteria.all_criteria_met ? '✓ All Scheme Criteria Met' : '⚠ Discrepancy / Incomplete Criteria'}
               </span>
+            </div>
+
+            {/* Scholarship Match Fit Card */}
+            <div className="p-3 bg-zinc-50 rounded-xl border border-zinc-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+              <div className="space-y-0.5">
+                <span className="text-[10px] uppercase font-semibold text-zinc-500 block">
+                  Scholarship Match Fit Score
+                </span>
+                <p className="text-[11px] text-zinc-600">
+                  Weighted compatibility: ML Propensity (35%) + Academic Fit (35%) + Financial Need (20%) + Statutory Requirement (10%). Mandatory scheme criteria below must also be met.
+                </p>
+              </div>
+              <div className="shrink-0 text-left sm:text-right">
+                <span className="text-base font-bold text-emerald-700">
+                  {application.match_score != null ? `${application.match_score}%` : (scholarship.match_percentage != null ? `${scholarship.match_percentage}%` : 'N/A')}
+                </span>
+                <span className="block text-[10px] text-zinc-400">Scholarship Match</span>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">

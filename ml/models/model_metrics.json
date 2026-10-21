@@ -1,7 +1,7 @@
 {
   "best_model": "Gradient Boosting",
   "selected_metric": "F1 Score & Balanced Generalization",
-  "timestamp": "2026-10-21 14:45:45",
+  "timestamp": "2026-10-21 23:21:16",
   "models_benchmarked": {
     "Logistic Regression": {
       "name": "Logistic Regression",
@@ -10,8 +10,8 @@
       "recall": 0.9235,
       "f1_score": 0.9439,
       "roc_auc": 0.9807,
-      "cv_f1_mean": 0.9419,
-      "cv_f1_std": 0.0044,
+      "cv_f1_mean": 0.9434,
+      "cv_f1_std": 0.0017,
       "confusion_matrix": [
         [
           3183,
@@ -22,7 +22,7 @@
           6986
         ]
       ],
-      "training_time_seconds": 0.182
+      "training_time_seconds": 0.315
     },
     "Decision Tree": {
       "name": "Decision Tree",
@@ -31,8 +31,8 @@
       "recall": 0.9371,
       "f1_score": 0.955,
       "roc_auc": 0.981,
-      "cv_f1_mean": 0.9504,
-      "cv_f1_std": 0.002,
+      "cv_f1_mean": 0.9584,
+      "cv_f1_std": 0.0016,
       "confusion_matrix": [
         [
           3243,
@@ -43,7 +43,7 @@
           7089
         ]
       ],
-      "training_time_seconds": 0.243
+      "training_time_seconds": 0.46
     },
     "Random Forest": {
       "name": "Random Forest",
@@ -52,8 +52,8 @@
       "recall": 0.9293,
       "f1_score": 0.9549,
       "roc_auc": 0.9879,
-      "cv_f1_mean": 0.952,
-      "cv_f1_std": 0.0033,
+      "cv_f1_mean": 0.9562,
+      "cv_f1_std": 0.002,
       "confusion_matrix": [
         [
           3306,
@@ -64,7 +64,7 @@
           7030
         ]
       ],
-      "training_time_seconds": 0.5
+      "training_time_seconds": 0.584
     },
     "Gradient Boosting": {
       "name": "Gradient Boosting",
@@ -73,8 +73,8 @@
       "recall": 0.9496,
       "f1_score": 0.9637,
       "roc_auc": 0.9922,
-      "cv_f1_mean": 0.9614,
-      "cv_f1_std": 0.0024,
+      "cv_f1_mean": 0.9643,
+      "cv_f1_std": 0.0019,
       "confusion_matrix": [
         [
           3275,
@@ -85,7 +85,7 @@
           7184
         ]
       ],
-      "training_time_seconds": 1.187
+      "training_time_seconds": 1.954
     }
   },
   "feature_importance": [
@@ -171,6 +171,7 @@
     }
   ],
   "total_records": 55000,
+  "train_size": 44000,
   "test_size": 11000,
   "num_features": 74,
   "policy_compliance": "Caste/Category Independent - Pure Academic & Socioeconomic Merit",

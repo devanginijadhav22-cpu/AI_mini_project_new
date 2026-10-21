@@ -98,6 +98,8 @@ export const adminAPI = {
   getAnalytics: () => api.get('/admin/analytics'),
   getModelPerformance: () => api.get('/admin/model-performance'),
   retrainModel: () => api.post('/admin/model/retrain'),
+  getExpertSystemDiagnostics: (params) => api.get('/admin/expert-system/diagnostics', { params }),
+  evaluateExpertSystem: (data) => api.post('/admin/expert-system/diagnostics', data),
 };
 
 export default api;

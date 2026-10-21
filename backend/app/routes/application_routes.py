@@ -19,6 +19,21 @@ from backend.app.services.recommendation_service import ScholarshipRecommendatio
 
 router = APIRouter(tags=["Applications & Recommendations"])
 
+
+def extract_student_dict(profile, academics, financials) -> dict:
+    return {
+        "cgpa": academics.cgpa if academics and academics.cgpa is not None else 8.0,
+        "family_income": financials.family_income if financials and financials.family_income is not None else 250000.0,
+        "backlogs": academics.backlogs if academics and academics.backlogs is not None else 0,
+        "category": profile.category if profile and profile.category else None,
+        "gender": profile.gender if profile and profile.gender else "Male",
+        "education_level": academics.education_level if academics and academics.education_level else "Undergraduate",
+        "attendance": academics.attendance if academics and academics.attendance is not None else 85.0,
+        "course": academics.course if academics and academics.course else "",
+        "disability": profile.disability if profile and profile.disability is not None else 0
+    }
+
+
 @router.post("/applications", response_model=ApplicationResponse)
 def submit_application(
     app_in: ApplicationCreate,
@@ -43,18 +58,32 @@ def submit_application(
             detail=f"You have already applied for '{scholarship.title}' on {existing.applied_at.strftime('%d-%b-%Y')}."
         )
 
-    # Get student's latest score
+    # Get student's saved assessment at application time
     latest_eval = db.query(EligibilityResult).filter(
         EligibilityResult.user_id == user_id
     ).order_by(EligibilityResult.created_at.desc()).first()
 
     score = latest_eval.hybrid_score if latest_eval else 75.0
+    eval_id = latest_eval.id if latest_eval else None
+
+    # Compute the scholarship-specific match score for this exact scheme
+    profile = db.query(StudentProfile).filter(StudentProfile.user_id == user_id).first()
+    academics = db.query(AcademicRecord).filter(AcademicRecord.user_id == user_id).first()
+    financials = db.query(FinancialRecord).filter(FinancialRecord.user_id == user_id).first()
+
+    student_dict = extract_student_dict(profile, academics, financials)
+    prob = latest_eval.ml_probability if latest_eval else 0.85
+    sch_recs = ScholarshipRecommendationEngine.get_recommendations(student_dict, db, ml_prob=prob)
+    target_rec = next((r for r in sch_recs if r["id"] == scholarship.id), None)
+    match_score = target_rec["match_percentage"] if target_rec else None
 
     new_app = Application(
         user_id=user_id,
         scholarship_id=app_in.scholarship_id,
         status="PENDING",
         score_at_application=score,
+        eligibility_result_id=eval_id,
+        match_score_at_application=match_score,
         remarks=app_in.remarks
     )
     db.add(new_app)
@@ -79,6 +108,7 @@ def submit_application(
         "status": new_app.status,
         "applied_at": new_app.applied_at,
         "score_at_application": new_app.score_at_application,
+        "match_score": new_app.match_score_at_application,
         "remarks": new_app.remarks
     }
 
@@ -103,6 +133,7 @@ def get_student_applications(
             "status": a.status,
             "applied_at": a.applied_at,
             "score_at_application": a.score_at_application,
+            "match_score": a.match_score_at_application,
             "remarks": a.remarks,
             "decision_remarks": a.decision_remarks or a.remarks,
             "reviewed_at": a.reviewed_at,
@@ -128,17 +159,8 @@ def get_recommendations(
         EligibilityResult.user_id == user_id
     ).order_by(EligibilityResult.created_at.desc()).first()
 
-    prob = latest_eval.ml_probability if latest_eval else 0.75
-
-    student_dict = {
-        "cgpa": academics.cgpa if academics else 8.0,
-        "family_income": financials.family_income if financials else 250000.0,
-        "backlogs": academics.backlogs if academics else 0,
-        "category": profile.category if profile else "General",
-        "gender": profile.gender if profile else "Female",
-        "education_level": academics.education_level if academics else "Undergraduate",
-        "attendance": academics.attendance if academics else 85.0
-    }
+    prob = latest_eval.ml_probability if latest_eval else 0.85
+    student_dict = extract_student_dict(profile, academics, financials)
 
     recs = ScholarshipRecommendationEngine.get_recommendations(student_dict, db, ml_prob=prob)
 
