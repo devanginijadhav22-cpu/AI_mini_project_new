@@ -26,6 +26,8 @@ class AnalyticsData(BaseModel):
     income_brackets: List[Dict[str, Any]]
     academic_performance_distribution: List[Dict[str, Any]]
     model_prediction_distribution: List[Dict[str, Any]]
+    metadata: Optional[Dict[str, Any]] = None
+    calibration: Optional[Dict[str, Any]] = None
 
 class ModelPerformanceData(BaseModel):
     best_model: str

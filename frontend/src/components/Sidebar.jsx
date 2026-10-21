@@ -23,7 +23,7 @@ const Sidebar = () => {
     { to: '/admin/students', label: 'Students' },
     { to: '/admin/scholarships', label: 'Scholarship Schemes' },
     { to: '/admin/analytics', label: 'Analytics' },
-    { to: '/admin/models', label: 'Model Health & XAI' },
+    { to: '/admin/models', label: 'ML Models' },
     { to: '/admin/expert-system', label: 'Expert System & Reasoning' },
     { to: '/settings', label: 'Settings' },
   ];

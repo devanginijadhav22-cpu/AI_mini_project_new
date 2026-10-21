@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { adminAPI } from '../services/api';
 import MetricCard from '../components/MetricCard';
 import { 
-  Users, Award, FileText, CheckCircle2, TrendingUp, 
+  Users, FileText, 
   Cpu, BarChart3, AlertCircle, ArrowRight, ShieldCheck 
 } from 'lucide-react';
 import { 
@@ -80,38 +80,28 @@ const AdminDashboard = () => {
           title="Total Registered"
           value={dashboardStats?.total_students || 0}
           subtitle="Active student accounts"
-          icon={Users}
-          color="blue"
         />
         <MetricCard
           title="Active Schemes"
           value={dashboardStats?.total_scholarships || 0}
           subtitle="Configured programs"
-          icon={Award}
-          color="emerald"
         />
         <Link to="/admin/applications" className="block hover:opacity-95 transition">
           <MetricCard
             title="Applications"
             value={dashboardStats?.total_applications || 0}
             subtitle={`${dashboardStats?.pending_applications || 0} awaiting review (${dashboardStats?.unique_applicants || 0} applicants)`}
-            icon={FileText}
-            color="indigo"
           />
         </Link>
         <MetricCard
           title="Eligible Students"
           value={dashboardStats?.eligible_students_count || 0}
           subtitle="Passed statutory checks"
-          icon={CheckCircle2}
-          color="purple"
         />
         <MetricCard
           title="Avg Hybrid Score"
           value={`${dashboardStats?.average_eligibility_score || 0}%`}
           subtitle="Across applicant pool"
-          icon={TrendingUp}
-          color="amber"
         />
       </div>
 
