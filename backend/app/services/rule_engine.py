@@ -552,13 +552,26 @@ class RuleBasedExpertSystem:
         """
         Evaluates a student against a specific published scholarship's criteria.
         """
-        cgpa = float(student_dict.get("cgpa", 0.0))
-        income = float(student_dict.get("family_income", 1000000.0))
-        backlogs = int(student_dict.get("backlogs", 0))
-        category = str(student_dict.get("category", "General"))
-        gender = str(student_dict.get("gender", "Male"))
-        course = str(student_dict.get("course", ""))
-        education_level = str(student_dict.get("education_level", ""))
+        raw_cgpa = student_dict.get("cgpa")
+        cgpa = float(raw_cgpa) if raw_cgpa is not None else 0.0
+
+        raw_income = student_dict.get("family_income")
+        income = float(raw_income) if raw_income is not None else 1000000.0
+
+        raw_backlogs = student_dict.get("backlogs")
+        backlogs = int(raw_backlogs) if raw_backlogs is not None else 0
+
+        raw_cat = student_dict.get("category")
+        category = str(raw_cat).strip() if raw_cat is not None and str(raw_cat).strip().lower() not in ["none", "null", ""] else None
+
+        raw_gender = student_dict.get("gender")
+        gender = str(raw_gender).strip() if raw_gender is not None else "Male"
+
+        raw_course = student_dict.get("course")
+        course = str(raw_course).strip() if raw_course is not None else ""
+
+        raw_edu = student_dict.get("education_level")
+        education_level = str(raw_edu).strip() if raw_edu is not None else ""
 
         missing_requirements = []
         is_eligible = True

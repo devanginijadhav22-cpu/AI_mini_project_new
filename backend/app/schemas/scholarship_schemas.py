@@ -46,6 +46,15 @@ class RecommendedScholarship(BaseModel):
     missing_requirements: List[str]
     required_documents: List[str]
     description: str
+    application_id: Optional[int] = None
+    application_status: Optional[str] = None
+    award_status: Optional[str] = None
+    decision_remarks: Optional[str] = None
+    applied_at: Optional[datetime] = None
+    reviewed_at: Optional[datetime] = None
+    disbursed_at: Optional[datetime] = None
+    disbursement_reference: Optional[str] = None
+    disbursement_notes: Optional[str] = None
 
 class ApplicationCreate(BaseModel):
     scholarship_id: int
@@ -61,6 +70,13 @@ class ApplicationResponse(BaseModel):
     applied_at: datetime
     score_at_application: float
     remarks: Optional[str] = None
+    decision_remarks: Optional[str] = None
+    reviewed_at: Optional[datetime] = None
+    reviewer_name: Optional[str] = None
+    award_status: Optional[str] = "NOT_AWARDED"
+    disbursed_at: Optional[datetime] = None
+    disbursement_reference: Optional[str] = None
+    disbursement_notes: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -69,8 +85,11 @@ class DocumentResponse(BaseModel):
     id: int
     document_type: str
     filename: str
+    file_size_kb: Optional[float] = 0.0
     verification_status: str
+    admin_remarks: Optional[str] = None
     uploaded_at: datetime
+    verified_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

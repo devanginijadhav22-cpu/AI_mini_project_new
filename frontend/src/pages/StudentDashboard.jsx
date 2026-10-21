@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { Link, useLocation } from 'react-router-dom';
 import { studentAPI } from '../services/api';
 import MetricCard from '../components/MetricCard';
 import GaugeScore from '../components/GaugeScore';
 import { 
   Sparkles, 
-  ArrowRight, AlertCircle, ChevronRight, Lock
+  ArrowRight, AlertCircle, ChevronRight, Lock, CheckCircle2
 } from 'lucide-react';
 
 const StudentDashboard = () => {
-  const { user } = useAuth();
+  const location = useLocation();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -64,6 +63,16 @@ const StudentDashboard = () => {
 
   return (
     <div className="space-y-6 max-w-6xl">
+      {/* Onboarding Completed Banner */}
+      {location.state?.onboardingComplete && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3.5 text-xs text-emerald-900 flex items-center gap-2.5 shadow-sm">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span>
+            <strong>Onboarding complete!</strong> Your official profile has been activated and your initial AI eligibility assessment is computed below.
+          </span>
+        </div>
+      )}
+
       {/* Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-zinc-200">
         <div>
@@ -78,7 +87,7 @@ const StudentDashboard = () => {
         <div className="flex items-center gap-2">
           {!profileComplete ? (
             <Link
-              to="/student/assessment"
+              to="/student/onboarding"
               className="px-3.5 py-2 text-xs font-medium text-white bg-zinc-900 hover:bg-zinc-800 rounded-md transition-colors flex items-center gap-1.5"
             >
               <span>Complete Profile ({profileCompletion}%)</span>
@@ -125,7 +134,7 @@ const StudentDashboard = () => {
             </div>
           </div>
           <Link
-            to="/student/assessment"
+            to="/student/onboarding"
             className="text-xs font-medium text-zinc-900 hover:underline shrink-0 self-center"
           >
             Finish now →
@@ -194,12 +203,20 @@ const StudentDashboard = () => {
               </span>
             </div>
             {hasResult ? (
-              <Link
-                to="/student/results"
-                className="mt-3 block text-center py-2 text-xs font-medium text-zinc-900 bg-zinc-100 hover:bg-zinc-200 rounded-md transition-colors"
-              >
-                View Full XAI Breakdown
-              </Link>
+              <div className="mt-3 flex gap-2">
+                <Link
+                  to="/student/results"
+                  className="flex-1 text-center py-2 text-xs font-medium text-zinc-900 bg-zinc-100 hover:bg-zinc-200 rounded-md transition-colors"
+                >
+                  View Breakdown
+                </Link>
+                <Link
+                  to="/student/assessment"
+                  className="flex-1 text-center py-2 text-xs font-medium text-white bg-zinc-900 hover:bg-zinc-800 rounded-md transition-colors"
+                >
+                  Re-evaluate
+                </Link>
+              </div>
             ) : (
               <Link
                 to="/student/assessment"

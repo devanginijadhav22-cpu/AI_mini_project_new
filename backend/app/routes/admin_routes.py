@@ -5,20 +5,21 @@ Admin Management, Analytics, and Model Monitoring Routes
 import json
 import threading
 import logging
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from backend.app.database.connection import get_db
 from backend.app.database.models import (
     User, StudentProfile, AcademicRecord, FinancialRecord, AchievementRecord,
-    Scholarship, Application, EligibilityResult, Notification
+    Scholarship, Application, EligibilityResult, Notification, StudentDocument
 )
 from backend.app.schemas.scholarship_schemas import ScholarshipCreate, ScholarshipResponse
 from backend.app.schemas.admin_schemas import (
     AdminDashboardStats, AnalyticsData, ModelPerformanceData,
-    StudentSummary, ApplicationAdminView, StatusUpdateRequest
+    StudentSummary, ApplicationAdminView, StatusUpdateRequest,
+    DisbursementRequest, AwardApplicantView
 )
 from backend.app.auth.jwt_handler import require_role
 from backend.app.services.ml_service import MLService
@@ -39,6 +40,9 @@ def get_admin_dashboard(
     total_scholarships = db.query(Scholarship).count()
     total_applications = db.query(Application).count()
 
+    # Distinct unique student applicants
+    unique_applicants = db.query(func.count(func.distinct(Application.user_id))).scalar() or 0
+
     # Count students who have run at least one eligibility check
     total_eligibility_checks = db.query(EligibilityResult).count()
 
@@ -49,17 +53,24 @@ def get_admin_dashboard(
 
     avg_score = db.query(func.avg(EligibilityResult.hybrid_score)).scalar() or 0.0
 
-    pending_apps  = db.query(Application).filter(Application.status.in_(["PENDING", "UNDER_REVIEW"])).count()
-    approved_apps = db.query(Application).filter(Application.status == "APPROVED").count()
+    pending_apps      = db.query(Application).filter(Application.status == "PENDING").count()
+    under_review_apps = db.query(Application).filter(Application.status == "UNDER_REVIEW").count()
+    needs_info_apps   = db.query(Application).filter(Application.status == "NEEDS_INFORMATION").count()
+    approved_apps     = db.query(Application).filter(Application.status == "APPROVED").count()
+    rejected_apps     = db.query(Application).filter(Application.status == "REJECTED").count()
 
     return {
         "total_students":            total_students,
         "total_scholarships":        total_scholarships,
         "total_applications":        total_applications,
+        "unique_applicants":         unique_applicants,
         "eligible_students_count":   eligible_count,
         "average_eligibility_score": round(float(avg_score), 1),
         "pending_applications":      pending_apps,
+        "under_review_applications": under_review_apps,
+        "needs_info_applications":   needs_info_apps,
         "approved_applications":     approved_apps,
+        "rejected_applications":     rejected_apps,
     }
 
 
@@ -106,31 +117,269 @@ def get_students(
     return results
 
 
-@router.get("/applications")
+@router.get("/applications", response_model=List[ApplicationAdminView])
 def get_all_applications(
+    status: Optional[str] = None,
+    scholarship_id: Optional[int] = None,
+    search: Optional[str] = None,
     payload: dict = Depends(require_role(["ADMIN"])),
     db: Session = Depends(get_db)
 ):
-    apps = db.query(Application).order_by(Application.applied_at.desc()).all()
+    query = db.query(Application).join(User, Application.user_id == User.id).join(Scholarship, Application.scholarship_id == Scholarship.id)
+
+    if status and status.upper() != "ALL":
+        query = query.filter(Application.status == status.upper())
+
+    if scholarship_id:
+        query = query.filter(Application.scholarship_id == scholarship_id)
+
+    if search:
+        search_pattern = f"%{search.strip()}%"
+        query = query.filter(
+            (User.full_name.ilike(search_pattern)) |
+            (User.email.ilike(search_pattern)) |
+            (Scholarship.title.ilike(search_pattern))
+        )
+
+    apps = query.order_by(Application.applied_at.desc()).all()
     results = []
     for a in apps:
         s = a.scholarship
         u = a.user
+        rev = a.reviewer
+        doc_count = db.query(StudentDocument).filter(StudentDocument.user_id == a.user_id).count()
+
         results.append({
-            "id":                  a.id,
-            "student_id":          u.id if u else 0,
-            "student_name":        u.full_name if u else "Unknown",
-            "student_email":       u.email if u else "N/A",
-            "scholarship_id":      s.id if s else 0,
-            "scholarship_title":   s.title if s else "Unknown",
-            "amount":              s.amount if s else 0.0,
-            "status":              a.status,
-            "applied_at":          a.applied_at,
+            "id": a.id,
+            "student_id": u.id if u else 0,
+            "student_name": u.full_name if u else "Unknown",
+            "student_email": u.email if u else "N/A",
+            "scholarship_id": s.id if s else 0,
+            "scholarship_title": s.title if s else "Unknown",
+            "scholarship_category": s.category if s else "General",
+            "provider": s.provider if s else "N/A",
+            "amount": s.amount if s else 0.0,
+            "status": a.status,
+            "applied_at": a.applied_at,
             "score_at_application": a.score_at_application,
-            "required_category":   s.required_category if s else "All",
-            "remarks":             a.remarks
+            "required_category": s.required_category if s else "All",
+            "remarks": a.remarks,
+            "decision_remarks": a.decision_remarks or a.remarks,
+            "reviewer_id": a.reviewer_id,
+            "reviewer_name": rev.full_name if rev else None,
+            "reviewed_at": a.reviewed_at,
+            "award_status": a.award_status or "NOT_AWARDED",
+            "disbursed_at": a.disbursed_at,
+            "disbursement_reference": a.disbursement_reference,
+            "documents_count": doc_count
         })
     return results
+
+
+@router.get("/applications/{app_id}")
+def get_application_detail(
+    app_id: int,
+    payload: dict = Depends(require_role(["ADMIN"])),
+    db: Session = Depends(get_db)
+):
+    app = db.query(Application).filter(Application.id == app_id).first()
+    if not app:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    student = app.user
+    sch = app.scholarship
+    prof = student.profile if student else None
+    acad = student.academic_record if student else None
+    fin = student.financial_record if student else None
+    ach = student.achievements if student else None
+    comp = calculate_completion(prof, acad, fin, ach)
+
+    # Documents submitted by this student
+    docs = db.query(StudentDocument).filter(StudentDocument.user_id == app.user_id).order_by(StudentDocument.uploaded_at.desc()).all()
+    doc_list = []
+    for d in docs:
+        doc_list.append({
+            "id": d.id,
+            "document_type": d.document_type,
+            "filename": d.filename,
+            "file_size_kb": d.file_size_kb,
+            "verification_status": d.verification_status,
+            "admin_remarks": d.admin_remarks,
+            "uploaded_at": d.uploaded_at,
+            "verified_at": d.verified_at,
+            "download_url": f"/api/documents/{d.id}/download"
+        })
+
+    # Latest eligibility assessment for this student
+    latest_eval = db.query(EligibilityResult).filter(
+        EligibilityResult.user_id == app.user_id
+    ).order_by(EligibilityResult.created_at.desc()).first()
+
+    pos_factors = []
+    neg_factors = []
+    tips = []
+    if latest_eval:
+        try:
+            pos_factors = json.loads(latest_eval.positive_factors_json) if latest_eval.positive_factors_json else []
+        except Exception:
+            pos_factors = []
+        try:
+            neg_factors = json.loads(latest_eval.negative_factors_json) if latest_eval.negative_factors_json else []
+        except Exception:
+            neg_factors = []
+        try:
+            tips = json.loads(latest_eval.improvement_tips_json) if latest_eval.improvement_tips_json else []
+        except Exception:
+            tips = []
+
+    # Criteria comparison for this specific scholarship
+    cgpa_val = acad.cgpa if acad and acad.cgpa is not None else 0.0
+    income_val = fin.family_income if fin and fin.family_income is not None else 0.0
+    backlogs_val = acad.backlogs if acad and acad.backlogs is not None else 0
+    attendance_val = acad.attendance if acad and acad.attendance is not None else 0.0
+    category_val = prof.category if prof and prof.category else "Not Specified"
+    gender_val = prof.gender if prof and prof.gender else "Not Specified"
+    edu_level_val = acad.education_level if acad and acad.education_level else "All"
+
+    # Evaluate against scholarship published criteria
+    cgpa_met = cgpa_val >= sch.min_cgpa if sch else True
+    income_met = income_val <= sch.max_income if sch else True
+    backlogs_met = backlogs_val <= sch.max_backlogs if sch else True
+    attendance_met = attendance_val >= sch.min_attendance if sch else True
+
+    # Statutory category check
+    category_met = True
+    category_note = "Statutory category check not required for this scholarship."
+    if sch and sch.required_category and sch.required_category not in ("All", "Any"):
+        if sch.required_category == "Female":
+            category_met = (gender_val.lower() == "female")
+            category_note = "Gender criterion: Female required."
+        else:
+            category_met = (category_val.upper() == sch.required_category.upper())
+            category_note = f"Statutory requirement: Must belong to {sch.required_category} category with verified certificate."
+
+    # Education level check
+    edu_met = True
+    if sch and sch.required_education_level and sch.required_education_level != "All":
+        edu_met = (edu_level_val.lower() == sch.required_education_level.lower())
+
+    # Document checklist
+    req_docs = [d.strip() for d in (sch.required_documents or "").split(",") if d.strip()]
+    submitted_doc_types = [d.document_type.lower() for d in docs]
+    doc_checklist = []
+    for rd in req_docs:
+        is_submitted = any(rd.lower() in sdt or sdt in rd.lower() for sdt in submitted_doc_types)
+        doc_checklist.append({
+            "requirement": rd,
+            "submitted": is_submitted
+        })
+
+    criteria_evaluation = {
+        "cgpa": {"required": sch.min_cgpa, "actual": cgpa_val, "met": cgpa_met},
+        "income": {"required_max": sch.max_income, "actual": income_val, "met": income_met},
+        "backlogs": {"required_max": sch.max_backlogs, "actual": backlogs_val, "met": backlogs_met},
+        "attendance": {"required_min": sch.min_attendance, "actual": attendance_val, "met": attendance_met},
+        "category": {"required": sch.required_category, "actual": category_val, "met": category_met, "note": category_note},
+        "education_level": {"required": sch.required_education_level, "actual": edu_level_val, "met": edu_met},
+        "documents": doc_checklist,
+        "all_criteria_met": bool(cgpa_met and income_met and backlogs_met and attendance_met and category_met and edu_met)
+    }
+
+    reviewer = app.reviewer
+    return {
+        "application": {
+            "id": app.id,
+            "status": app.status,
+            "applied_at": app.applied_at,
+            "score_at_application": app.score_at_application,
+            "remarks": app.remarks,
+            "decision_remarks": app.decision_remarks or app.remarks,
+            "reviewer_id": app.reviewer_id,
+            "reviewer_name": reviewer.full_name if reviewer else None,
+            "reviewed_at": app.reviewed_at,
+            "award_status": app.award_status or "NOT_AWARDED",
+            "disbursed_at": app.disbursed_at,
+            "disbursement_reference": app.disbursement_reference,
+            "disbursement_notes": app.disbursement_notes
+        },
+        "student": {
+            "id": student.id,
+            "full_name": student.full_name,
+            "email": student.email,
+            "is_active": student.is_active,
+            "created_at": student.created_at,
+            "profile_completion": comp,
+            "profile": {
+                "age": prof.age if prof else None,
+                "gender": prof.gender if prof else None,
+                "phone": prof.phone if prof else None,
+                "state": prof.state if prof else None,
+                "city": prof.city if prof else None,
+                "category": prof.category if prof else None,
+                "disability": prof.disability if prof else 0,
+                "rural_urban": prof.rural_urban if prof else None,
+                "first_generation": prof.first_generation if prof else 0,
+                "institution_type": prof.institution_type if prof else None,
+                "hostel_day_scholar": prof.hostel_day_scholar if prof else None
+            },
+            "academics": {
+                "education_level": acad.education_level if acad else None,
+                "course": acad.course if acad else None,
+                "year_of_study": acad.year_of_study if acad else None,
+                "cgpa": acad.cgpa if acad else None,
+                "percentage": acad.percentage if acad else None,
+                "backlogs": acad.backlogs if acad else 0,
+                "attendance": acad.attendance if acad else None,
+                "previous_scholarship": acad.previous_scholarship if acad else 0
+            },
+            "financials": {
+                "family_income": fin.family_income if fin else None,
+                "family_size": fin.family_size if fin else None,
+                "parent_occupation": fin.parent_occupation if fin else None,
+                "earning_members": fin.earning_members if fin else None,
+                "financial_dependency": fin.financial_dependency if fin else None
+            },
+            "achievements": {
+                "sports_achievement": ach.sports_achievement if ach else None,
+                "academic_achievement": ach.academic_achievement if ach else None,
+                "extracurricular_score": ach.extracurricular_score if ach else 5,
+                "certifications_count": ach.certifications_count if ach else 0,
+                "leadership_experience": ach.leadership_experience if ach else False
+            }
+        },
+        "scholarship": {
+            "id": sch.id if sch else 0,
+            "title": sch.title if sch else "Unknown",
+            "provider": sch.provider if sch else "Unknown",
+            "description": sch.description if sch else "",
+            "amount": sch.amount if sch else 0.0,
+            "deadline": sch.deadline if sch else "N/A",
+            "category": sch.category if sch else "General",
+            "min_cgpa": sch.min_cgpa if sch else 6.0,
+            "max_income": sch.max_income if sch else 800000.0,
+            "max_backlogs": sch.max_backlogs if sch else 1,
+            "min_attendance": sch.min_attendance if sch else 65.0,
+            "required_category": sch.required_category if sch else "All",
+            "required_education_level": sch.required_education_level if sch else "All",
+            "required_courses": sch.required_courses if sch else "All",
+            "required_documents": sch.required_documents if sch else ""
+        },
+        "criteria_evaluation": criteria_evaluation,
+        "eligibility_assessment": {
+            "rule_status": latest_eval.rule_status if latest_eval else "NOT_ASSESSED",
+            "ml_probability": latest_eval.ml_probability if latest_eval else 0.0,
+            "hybrid_score": latest_eval.hybrid_score if latest_eval else 0.0,
+            "final_verdict": latest_eval.final_verdict if latest_eval else "Not Assessed",
+            "positive_factors": pos_factors,
+            "negative_factors": neg_factors,
+            "improvement_tips": tips,
+            "evaluated_at": latest_eval.created_at if latest_eval else None,
+            "rule_engine_description": "Deterministic rule engine evaluated baseline academic and financial constraints independently of protected demographic traits.",
+            "gradient_boosting_description": "Gradient Boosting classifier estimated probability of competitive scholarship selection based on performance, income, attendance, and achievements.",
+            "hybrid_explanation": "Combines rule pass/fail logic with ML propensity to yield objective advisory guidance for committee decision-making."
+        },
+        "documents": doc_list
+    }
 
 
 @router.put("/applications/{app_id}/status")
@@ -140,23 +389,155 @@ def update_application_status(
     payload: dict = Depends(require_role(["ADMIN"])),
     db: Session = Depends(get_db)
 ):
+    admin_id = int(payload.get("sub"))
     app = db.query(Application).filter(Application.id == app_id).first()
     if not app:
         raise HTTPException(status_code=404, detail="Application not found")
 
-    app.status = status_in.status.upper()
+    new_status = status_in.status.upper()
+    valid_statuses = {"PENDING", "UNDER_REVIEW", "NEEDS_INFORMATION", "APPROVED", "REJECTED"}
+    if new_status not in valid_statuses:
+        raise HTTPException(status_code=400, detail=f"Invalid status '{new_status}'. Allowed: {sorted(list(valid_statuses))}")
+
+    # Validation: Remarks mandatory for APPROVED, REJECTED, and NEEDS_INFORMATION
+    if new_status in ("APPROVED", "REJECTED", "NEEDS_INFORMATION"):
+        if not status_in.remarks or not status_in.remarks.strip():
+            action_name = "Approval remarks" if new_status == "APPROVED" else ("Rejection reason" if new_status == "REJECTED" else "Specific instructions for requested information")
+            raise HTTPException(
+                status_code=400,
+                detail=f"{action_name} are mandatory to transition status to {new_status}."
+            )
+
+    app.status = new_status
     if status_in.remarks:
         app.remarks = status_in.remarks
+        app.decision_remarks = status_in.remarks
+    app.reviewer_id = admin_id
+    app.reviewed_at = datetime.utcnow()
 
+    # Award status update logic
+    if new_status == "APPROVED":
+        if app.award_status in (None, "NOT_AWARDED"):
+            app.award_status = "AWARDED"
+    elif new_status == "REJECTED":
+        app.award_status = "NOT_AWARDED"
+
+    title_map = {
+        "UNDER_REVIEW": "Application Under Committee Review",
+        "NEEDS_INFORMATION": "Action Required: Additional Information Requested",
+        "APPROVED": "Congratulations! Scholarship Application Approved",
+        "REJECTED": "Scholarship Application Update"
+    }
+    type_map = {
+        "APPROVED": "SUCCESS",
+        "REJECTED": "WARNING",
+        "NEEDS_INFORMATION": "WARNING",
+        "UNDER_REVIEW": "INFO"
+    }
+    sch_title = app.scholarship.title if app.scholarship else "Scholarship"
     note = Notification(
         user_id=app.user_id,
-        title=f"Application {app.status.capitalize()}",
-        message=f"Your application for '{app.scholarship.title}' status: {app.status}. {status_in.remarks or 'Reviewed by committee.'}",
-        type="SUCCESS" if app.status == "APPROVED" else ("WARNING" if app.status == "REJECTED" else "INFO")
+        title=title_map.get(new_status, f"Application {new_status.capitalize()}"),
+        message=f"Application for '{sch_title}': status changed to {new_status}. Decision remarks: {status_in.remarks or 'Under active administrative review.'}",
+        type=type_map.get(new_status, "INFO")
     )
     db.add(note)
     db.commit()
-    return {"message": f"Application status updated to {app.status}"}
+    db.refresh(app)
+
+    return {
+        "message": f"Application status updated to {app.status}",
+        "application_id": app.id,
+        "status": app.status,
+        "award_status": app.award_status,
+        "reviewer_id": app.reviewer_id,
+        "reviewed_at": app.reviewed_at
+    }
+
+
+@router.get("/scholarships/{sch_id}/awards", response_model=List[AwardApplicantView])
+def get_scholarship_awards(
+    sch_id: int,
+    payload: dict = Depends(require_role(["ADMIN"])),
+    db: Session = Depends(get_db)
+):
+    apps = db.query(Application).filter(
+        Application.scholarship_id == sch_id,
+        Application.status == "APPROVED"
+    ).order_by(Application.reviewed_at.desc(), Application.applied_at.desc()).all()
+
+    results = []
+    for a in apps:
+        u = a.user
+        s = a.scholarship
+        rev = a.reviewer
+        results.append({
+            "application_id": a.id,
+            "student_id": u.id if u else 0,
+            "student_name": u.full_name if u else "Unknown",
+            "student_email": u.email if u else "N/A",
+            "scholarship_id": s.id if s else 0,
+            "scholarship_title": s.title if s else "Unknown",
+            "amount": s.amount if s else 0.0,
+            "status": a.status,
+            "award_status": a.award_status or "AWARDED",
+            "decision_remarks": a.decision_remarks or a.remarks,
+            "decision_date": a.reviewed_at,
+            "reviewer_name": rev.full_name if rev else None,
+            "disbursed_at": a.disbursed_at,
+            "disbursement_reference": a.disbursement_reference,
+            "disbursement_notes": a.disbursement_notes
+        })
+    return results
+
+
+@router.post("/applications/{app_id}/disburse")
+def disburse_scholarship_award(
+    app_id: int,
+    disb_in: DisbursementRequest,
+    payload: dict = Depends(require_role(["ADMIN"])),
+    db: Session = Depends(get_db)
+):
+    admin_id = int(payload.get("sub"))
+    app = db.query(Application).filter(Application.id == app_id).first()
+    if not app:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    if app.status != "APPROVED":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Only APPROVED applications can be disbursed. Current status: '{app.status}'."
+        )
+
+    ref = disb_in.disbursement_reference.strip()
+    if not ref:
+        raise HTTPException(status_code=400, detail="Disbursement transaction/audit reference number is required.")
+
+    app.award_status = "DISBURSED"
+    app.disbursed_at = datetime.utcnow()
+    app.disbursement_reference = ref
+    app.disbursement_notes = disb_in.disbursement_notes
+
+    sch_title = app.scholarship.title if app.scholarship else "Scholarship"
+    sch_amount = app.scholarship.amount if app.scholarship else 0.0
+
+    note = Notification(
+        user_id=app.user_id,
+        title="Scholarship Grant Disbursed",
+        message=f"Grant payment of ₹{sch_amount:,.0f} for '{sch_title}' has been successfully disbursed. Transaction Ref: {ref}.",
+        type="SUCCESS"
+    )
+    db.add(note)
+    db.commit()
+    db.refresh(app)
+
+    return {
+        "message": f"Disbursement recorded successfully for application #{app.id}",
+        "application_id": app.id,
+        "award_status": app.award_status,
+        "disbursed_at": app.disbursed_at,
+        "disbursement_reference": app.disbursement_reference
+    }
 
 
 # ---- Scholarship CRUD ----

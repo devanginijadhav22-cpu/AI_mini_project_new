@@ -8,7 +8,7 @@ const Sidebar = () => {
 
   const studentLinks = [
     { to: '/student/dashboard', label: 'Dashboard' },
-    { to: '/student/assessment', label: 'Eligibility Wizard' },
+    ...(!user.profile_is_complete ? [{ to: '/student/onboarding', label: 'Eligibility Wizard' }] : []),
     { to: '/student/results', label: 'AI Evaluation' },
     { to: '/student/scholarships', label: 'Recommendations' },
     { to: '/student/applications', label: 'Applications' },
@@ -19,6 +19,7 @@ const Sidebar = () => {
 
   const adminLinks = [
     { to: '/admin/dashboard', label: 'Overview' },
+    { to: '/admin/applications', label: 'Applications' },
     { to: '/admin/students', label: 'Students' },
     { to: '/admin/scholarships', label: 'Scholarship Schemes' },
     { to: '/admin/analytics', label: 'Analytics' },

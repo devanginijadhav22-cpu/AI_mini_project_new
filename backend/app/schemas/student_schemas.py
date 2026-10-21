@@ -58,37 +58,37 @@ class FullStudentProfileResponse(BaseModel):
 
 class AssessmentPayload(BaseModel):
     # Step 1: Personal
-    age: int
-    gender: str
-    state: str
-    city: str
+    age: Optional[int] = None
+    gender: Optional[str] = None
+    state: Optional[str] = None
+    city: Optional[str] = None
     category: Optional[str] = None
-    disability: int
-    rural_urban: str
-    first_generation: int
-    institution_type: str
-    hostel_day_scholar: str
+    disability: Optional[int] = None
+    rural_urban: Optional[str] = None
+    first_generation: Optional[int] = None
+    institution_type: Optional[str] = None
+    hostel_day_scholar: Optional[str] = None
     
     # Step 2: Academic
-    education_level: str
-    course: str
-    year_of_study: int
-    cgpa: float
-    percentage: float
-    backlogs: int
-    attendance: float
-    previous_scholarship: int
+    education_level: Optional[str] = None
+    course: Optional[str] = None
+    year_of_study: Optional[int] = None
+    cgpa: Optional[float] = None
+    percentage: Optional[float] = None
+    backlogs: Optional[int] = None
+    attendance: Optional[float] = None
+    previous_scholarship: Optional[int] = None
     
     # Step 3: Financial
-    family_income: float
-    family_size: int
-    parent_occupation: str
-    earning_members: int
-    financial_dependency: str
+    family_income: Optional[float] = None
+    family_size: Optional[int] = None
+    parent_occupation: Optional[str] = None
+    earning_members: Optional[int] = None
+    financial_dependency: Optional[str] = None
     
     # Step 4: Achievements
-    sports_achievement: str
-    academic_achievement: str
-    extracurricular_score: int
-    certifications_count: int
-    leadership_experience: bool
+    sports_achievement: Optional[str] = None
+    academic_achievement: Optional[str] = None
+    extracurricular_score: Optional[int] = None
+    certifications_count: Optional[int] = None
+    leadership_experience: Optional[bool] = None

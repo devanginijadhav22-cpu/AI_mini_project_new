@@ -86,50 +86,49 @@ def assess_eligibility(
     if not profile:
         profile = StudentProfile(user_id=user_id)
         db.add(profile)
-    profile.age               = payload_data.age
-    profile.gender            = payload_data.gender
-    profile.state             = payload_data.state
-    profile.city              = payload_data.city
-    if payload_data.category is not None:
-        profile.category      = payload_data.category
-    profile.disability        = payload_data.disability
-    profile.rural_urban       = payload_data.rural_urban
-    profile.first_generation  = payload_data.first_generation
-    profile.institution_type  = payload_data.institution_type
-    profile.hostel_day_scholar = payload_data.hostel_day_scholar
+    if payload_data.age is not None: profile.age = payload_data.age
+    if payload_data.gender is not None: profile.gender = payload_data.gender
+    if payload_data.state is not None: profile.state = payload_data.state
+    if payload_data.city is not None: profile.city = payload_data.city
+    if payload_data.category is not None: profile.category = payload_data.category
+    if payload_data.disability is not None: profile.disability = payload_data.disability
+    if payload_data.rural_urban is not None: profile.rural_urban = payload_data.rural_urban
+    if payload_data.first_generation is not None: profile.first_generation = payload_data.first_generation
+    if payload_data.institution_type is not None: profile.institution_type = payload_data.institution_type
+    if payload_data.hostel_day_scholar is not None: profile.hostel_day_scholar = payload_data.hostel_day_scholar
 
     academics = db.query(AcademicRecord).filter(AcademicRecord.user_id == user_id).first()
     if not academics:
         academics = AcademicRecord(user_id=user_id)
         db.add(academics)
-    academics.education_level     = payload_data.education_level
-    academics.course              = payload_data.course
-    academics.year_of_study       = payload_data.year_of_study
-    academics.cgpa                = payload_data.cgpa
-    academics.percentage          = payload_data.percentage
-    academics.backlogs            = payload_data.backlogs
-    academics.attendance          = payload_data.attendance
-    academics.previous_scholarship = payload_data.previous_scholarship
+    if payload_data.education_level is not None: academics.education_level = payload_data.education_level
+    if payload_data.course is not None: academics.course = payload_data.course
+    if payload_data.year_of_study is not None: academics.year_of_study = payload_data.year_of_study
+    if payload_data.cgpa is not None: academics.cgpa = payload_data.cgpa
+    if payload_data.percentage is not None: academics.percentage = payload_data.percentage
+    if payload_data.backlogs is not None: academics.backlogs = payload_data.backlogs
+    if payload_data.attendance is not None: academics.attendance = payload_data.attendance
+    if payload_data.previous_scholarship is not None: academics.previous_scholarship = payload_data.previous_scholarship
 
     financials = db.query(FinancialRecord).filter(FinancialRecord.user_id == user_id).first()
     if not financials:
         financials = FinancialRecord(user_id=user_id)
         db.add(financials)
-    financials.family_income       = payload_data.family_income
-    financials.family_size         = payload_data.family_size
-    financials.parent_occupation   = payload_data.parent_occupation
-    financials.earning_members     = payload_data.earning_members
-    financials.financial_dependency = payload_data.financial_dependency
+    if payload_data.family_income is not None: financials.family_income = payload_data.family_income
+    if payload_data.family_size is not None: financials.family_size = payload_data.family_size
+    if payload_data.parent_occupation is not None: financials.parent_occupation = payload_data.parent_occupation
+    if payload_data.earning_members is not None: financials.earning_members = payload_data.earning_members
+    if payload_data.financial_dependency is not None: financials.financial_dependency = payload_data.financial_dependency
 
     achievements = db.query(AchievementRecord).filter(AchievementRecord.user_id == user_id).first()
     if not achievements:
         achievements = AchievementRecord(user_id=user_id)
         db.add(achievements)
-    achievements.sports_achievement    = payload_data.sports_achievement
-    achievements.academic_achievement  = payload_data.academic_achievement
-    achievements.extracurricular_score = payload_data.extracurricular_score
-    achievements.certifications_count  = payload_data.certifications_count
-    achievements.leadership_experience = payload_data.leadership_experience
+    if payload_data.sports_achievement is not None: achievements.sports_achievement = payload_data.sports_achievement
+    if payload_data.academic_achievement is not None: achievements.academic_achievement = payload_data.academic_achievement
+    if payload_data.extracurricular_score is not None: achievements.extracurricular_score = payload_data.extracurricular_score
+    if payload_data.certifications_count is not None: achievements.certifications_count = payload_data.certifications_count
+    if payload_data.leadership_experience is not None: achievements.leadership_experience = payload_data.leadership_experience
 
     db.commit()
     db.refresh(profile)
@@ -144,6 +143,8 @@ def assess_eligibility(
     logger.info(f"[ELIGIBILITY CHECK] Profile completion: {completion}%")
 
     if completion < 100:
+        from backend.app.routes.student_routes import get_missing_details
+        missing_sections, missing_fields = get_missing_details(profile, academics, financials, achievements)
         raise HTTPException(
             status_code=422,
             detail={
@@ -151,6 +152,8 @@ def assess_eligibility(
                 "code": "PROFILE_INCOMPLETE",
                 "message": "Complete your profile before running AI eligibility verification.",
                 "completion_percentage": completion,
+                "missing_sections": missing_sections,
+                "missing_fields": missing_fields,
             }
         )
 

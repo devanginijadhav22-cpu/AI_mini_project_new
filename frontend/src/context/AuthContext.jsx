@@ -30,8 +30,15 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     const res = await authAPI.login({ email, password });
-    const { access_token, user_id, full_name, role } = res.data;
-    const userData = { id: user_id, email, full_name, role };
+    const { access_token, user_id, full_name, role, profile_is_complete, profile_completion_percentage } = res.data;
+    const userData = { 
+      id: user_id, 
+      email, 
+      full_name, 
+      role,
+      profile_is_complete: Boolean(profile_is_complete),
+      profile_completion_percentage: profile_completion_percentage ?? 0
+    };
 
     localStorage.setItem('token', access_token);
     localStorage.setItem('user', JSON.stringify(userData));
@@ -47,14 +54,34 @@ export const AuthProvider = ({ children }) => {
       password,
       role: 'STUDENT'
     });
-    const { access_token, user_id, role } = res.data;
-    const userData = { id: user_id, email, full_name: fullName, role };
+    const { access_token, user_id, role, profile_is_complete, profile_completion_percentage } = res.data;
+    const userData = { 
+      id: user_id, 
+      email, 
+      full_name: fullName, 
+      role,
+      profile_is_complete: Boolean(profile_is_complete),
+      profile_completion_percentage: profile_completion_percentage ?? 0
+    };
 
     localStorage.setItem('token', access_token);
     localStorage.setItem('user', JSON.stringify(userData));
     setToken(access_token);
     setUser(userData);
     return userData;
+  };
+
+  const updateProfileCompletion = (completionData) => {
+    setUser(prev => {
+      if (!prev) return prev;
+      const updated = {
+        ...prev,
+        profile_is_complete: completionData.profile_is_complete ?? prev.profile_is_complete,
+        profile_completion_percentage: completionData.profile_completion_percentage ?? prev.profile_completion_percentage
+      };
+      localStorage.setItem('user', JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const logout = () => {
@@ -65,7 +92,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, login, register, logout, updateProfileCompletion }}>
       {children}
     </AuthContext.Provider>
   );

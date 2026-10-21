@@ -19,8 +19,10 @@ const LoginPage = () => {
       const user = await login(email, password);
       if (user.role === 'ADMIN') {
         navigate('/admin/dashboard', { replace: true });
-      } else {
+      } else if (user.profile_is_complete) {
         navigate('/student/dashboard', { replace: true });
+      } else {
+        navigate('/student/onboarding', { replace: true });
       }
     } catch (err) {
       setError(err.response?.data?.detail || 'Invalid email or password. Please verify your credentials.');

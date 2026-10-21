@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { scholarshipAPI, adminAPI } from '../services/api';
 import { 
   Award, Plus, Edit2, Trash2, X, Check, AlertCircle, 
-  ShieldCheck, Calendar, DollarSign 
+  ShieldCheck, Calendar, DollarSign, UserCheck, CheckCircle2 
 } from 'lucide-react';
 
 const ScholarshipManagement = () => {
@@ -11,6 +11,11 @@ const ScholarshipManagement = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingScholarship, setEditingScholarship] = useState(null);
   const [error, setError] = useState(null);
+
+  // Awardees Modal State
+  const [awardeesModalSch, setAwardeesModalSch] = useState(null);
+  const [awardees, setAwardees] = useState([]);
+  const [loadingAwardees, setLoadingAwardees] = useState(false);
 
   // Form State
   const initialForm = {
@@ -68,6 +73,19 @@ const ScholarshipManagement = () => {
       setScholarships(prev => prev.filter(s => s.id !== id));
     } catch (err) {
       alert("Failed to delete scholarship");
+    }
+  };
+
+  const handleOpenAwardees = async (sch) => {
+    setAwardeesModalSch(sch);
+    setLoadingAwardees(true);
+    try {
+      const res = await adminAPI.getScholarshipAwards(sch.id);
+      setAwardees(res.data);
+    } catch (err) {
+      console.error("Failed to load scholarship awards:", err);
+    } finally {
+      setLoadingAwardees(false);
     }
   };
 
@@ -151,6 +169,13 @@ const ScholarshipManagement = () => {
                     <td className="py-3 px-4 text-zinc-600">≤ ₹{s.max_income?.toLocaleString()}</td>
                     <td className="py-3 px-4 text-zinc-600">{s.deadline}</td>
                     <td className="py-3 px-4 text-right space-x-1">
+                      <button
+                        onClick={() => handleOpenAwardees(s)}
+                        className="p-1.5 text-zinc-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-md transition"
+                        title="View approved scholars & awards"
+                      >
+                        <UserCheck className="w-3.5 h-3.5" />
+                      </button>
                       <button
                         onClick={() => handleOpenEdit(s)}
                         className="p-1.5 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 rounded-md transition"
@@ -349,6 +374,101 @@ const ScholarshipManagement = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Approved Scholars & Awardees Modal */}
+      {awardeesModalSch && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/40 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white rounded-xl max-w-3xl w-full p-6 shadow-xl border border-zinc-200 relative my-8 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-200">
+              <div>
+                <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400">
+                  Awarded Scholars Registry
+                </span>
+                <h3 className="text-base font-semibold text-zinc-900">
+                  {awardeesModalSch.title}
+                </h3>
+                <p className="text-xs text-zinc-500">
+                  Provider: {awardeesModalSch.provider} • Grant: ₹{awardeesModalSch.amount?.toLocaleString()}
+                </p>
+              </div>
+              <button
+                onClick={() => setAwardeesModalSch(null)}
+                className="p-1 text-zinc-400 hover:text-zinc-600 rounded-lg"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {loadingAwardees ? (
+              <div className="py-12 flex justify-center">
+                <div className="w-6 h-6 border-2 border-zinc-200 border-t-zinc-900 rounded-full animate-spin"></div>
+              </div>
+            ) : awardees.length === 0 ? (
+              <div className="py-10 text-center text-xs text-zinc-500 space-y-1">
+                <Award className="w-8 h-8 text-zinc-300 mx-auto mb-2" />
+                <p className="font-medium text-zinc-800">No approved applications yet for this scheme.</p>
+                <p>When administrators approve student applications, they will be listed here with decision timestamps.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto border border-zinc-200 rounded-lg">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-zinc-50 text-zinc-500 font-semibold border-b border-zinc-200">
+                    <tr>
+                      <th className="py-2.5 px-3">Applicant</th>
+                      <th className="py-2.5 px-3">Approval Date</th>
+                      <th className="py-2.5 px-3">Award Status</th>
+                      <th className="py-2.5 px-3">Decision Remarks</th>
+                      <th className="py-2.5 px-3">Disbursement</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-100 text-zinc-700">
+                    {awardees.map((aw) => (
+                      <tr key={aw.application_id} className="hover:bg-zinc-50/50">
+                        <td className="py-2.5 px-3">
+                          <p className="font-semibold text-zinc-900">{aw.student_name}</p>
+                          <p className="text-[10px] text-zinc-400">{aw.student_email}</p>
+                        </td>
+                        <td className="py-2.5 px-3 text-zinc-600 whitespace-nowrap">
+                          {aw.decision_date ? new Date(aw.decision_date).toLocaleDateString() : 'N/A'}
+                        </td>
+                        <td className="py-2.5 px-3 whitespace-nowrap">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${
+                            aw.award_status === 'DISBURSED'
+                              ? 'bg-purple-50 text-purple-800 border-purple-200'
+                              : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                          }`}>
+                            {aw.award_status}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 max-w-xs truncate text-zinc-600" title={aw.decision_remarks}>
+                          {aw.decision_remarks || 'Official sanction.'}
+                        </td>
+                        <td className="py-2.5 px-3 text-[11px] whitespace-nowrap">
+                          {aw.disbursed_at ? (
+                            <span className="text-purple-700 font-mono">
+                              Ref: {aw.disbursement_reference}
+                            </span>
+                          ) : (
+                            <span className="text-zinc-400 italic">Pending Disbursement</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div className="flex justify-end pt-2 border-t border-zinc-100">
+              <button
+                onClick={() => setAwardeesModalSch(null)}
+                className="px-4 py-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-xs font-medium rounded-lg transition"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

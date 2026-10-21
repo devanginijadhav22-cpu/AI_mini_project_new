@@ -81,3 +81,80 @@ def get_documents(
     caller_id = int(payload.get("sub"))
     target_id = student_id if (role == "ADMIN" and student_id is not None) else caller_id
     return db.query(StudentDocument).filter(StudentDocument.user_id == target_id).order_by(StudentDocument.uploaded_at.desc()).all()
+
+
+@router.get("/{doc_id}/download")
+def download_document(
+    doc_id: int,
+    payload: dict = Depends(require_role(["STUDENT", "ADMIN"])),
+    db: Session = Depends(get_db)
+):
+    from fastapi.responses import FileResponse
+    import mimetypes
+
+    role = payload.get("role")
+    caller_id = int(payload.get("sub"))
+
+    doc = db.query(StudentDocument).filter(StudentDocument.id == doc_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    # Scope authorization: student can only download their own document
+    if role != "ADMIN" and doc.user_id != caller_id:
+        raise HTTPException(status_code=403, detail="Unauthorized access to document")
+
+    real_file_path = os.path.abspath(doc.file_path)
+    upload_root = os.path.abspath(settings.UPLOAD_DIR)
+
+    # Protect against path traversal
+    if not real_file_path.startswith(upload_root):
+        raise HTTPException(status_code=403, detail="Invalid document path")
+
+    if not os.path.exists(real_file_path):
+        raise HTTPException(status_code=404, detail="Document file does not exist on disk")
+
+    media_type, _ = mimetypes.guess_type(real_file_path)
+    return FileResponse(
+        path=real_file_path,
+        filename=doc.filename,
+        media_type=media_type or "application/octet-stream"
+    )
+
+
+@router.put("/{doc_id}/status", response_model=DocumentResponse)
+def update_document_verification(
+    doc_id: int,
+    status_data: dict,
+    payload: dict = Depends(require_role(["ADMIN"])),
+    db: Session = Depends(get_db)
+):
+    from datetime import datetime
+    admin_id = int(payload.get("sub"))
+
+    doc = db.query(StudentDocument).filter(StudentDocument.id == doc_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    new_status = status_data.get("verification_status", "VERIFIED").upper()
+    valid_statuses = {"VERIFIED", "NEEDS_CORRECTION", "REJECTED", "PENDING"}
+    if new_status not in valid_statuses:
+        raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {valid_statuses}")
+
+    doc.verification_status = new_status
+    doc.admin_remarks = status_data.get("admin_remarks")
+    doc.verified_at = datetime.utcnow()
+    doc.verified_by = admin_id
+
+    # Add notification for student if action needed
+    if new_status in ("NEEDS_CORRECTION", "REJECTED"):
+        note = Notification(
+            user_id=doc.user_id,
+            title=f"Document Update: {doc.document_type}",
+            message=f"Administrator feedback on '{doc.filename}': {doc.verification_status}. Remarks: {doc.admin_remarks or 'Please re-upload with clear details.'}",
+            type="WARNING"
+        )
+        db.add(note)
+
+    db.commit()
+    db.refresh(doc)
+    return doc

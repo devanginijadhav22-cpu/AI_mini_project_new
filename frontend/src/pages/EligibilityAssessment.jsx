@@ -1,18 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { studentAPI, eligibilityAPI } from '../services/api';
 import { 
   ArrowRight, ArrowLeft, Check, User, 
-  GraduationCap, DollarSign, Award, CheckSquare, AlertCircle 
+  GraduationCap, DollarSign, Award, CheckSquare, AlertCircle, 
+  Sparkles, CheckCircle2 
 } from 'lucide-react';
 
-const EligibilityAssessment = () => {
+const EligibilityAssessment = ({ isOnboarding = false }) => {
   const navigate = useNavigate();
+  const { updateProfileCompletion } = useAuth();
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [profileStatus, setProfileStatus] = useState({
+    completion: 0,
+    isComplete: false,
+    missingSections: [],
+    missingFields: {}
+  });
+  const [loadingProfile, setLoadingProfile] = useState(true);
 
-  // Form State
+  // Form State initialized with defaults
   const [formData, setFormData] = useState({
     // Step 1: Personal
     age: '',
@@ -50,18 +60,21 @@ const EligibilityAssessment = () => {
     leadership_experience: false,
   });
 
-  // Pre-load student's existing profile if available
+  // Pre-load student's authoritative saved profile from backend
   useEffect(() => {
     const fetchExisting = async () => {
       try {
         const res = await studentAPI.getProfile();
-        const { profile, academics, financials, achievements } = res.data;
+        const data = res.data;
+        const { profile, academics, financials, achievements } = data;
+
         const mergeNonNull = (obj) => {
           if (!obj) return {};
           return Object.fromEntries(
             Object.entries(obj).filter(([, v]) => v !== null && v !== undefined && v !== '')
           );
         };
+
         setFormData(prev => ({
           ...prev,
           ...mergeNonNull(profile),
@@ -69,12 +82,39 @@ const EligibilityAssessment = () => {
           ...mergeNonNull(financials),
           ...mergeNonNull(achievements),
         }));
-      } catch {
-        // Start fresh if no profile exists
+
+        const isComplete = data.profile_is_complete || data.profile_completion_percentage === 100;
+        const missingSections = data.missing_sections || [];
+        const missingFields = data.missing_fields || {};
+
+        setProfileStatus({
+          completion: data.profile_completion_percentage || 0,
+          isComplete,
+          missingSections,
+          missingFields
+        });
+
+        // If in onboarding mode and profile is ALREADY 100% complete, redirect directly to dashboard
+        if (isOnboarding && isComplete) {
+          navigate('/student/dashboard', { replace: true });
+          return;
+        }
+
+        // If incomplete, direct student directly to the first step with missing information
+        if (!isComplete && missingSections.length > 0) {
+          if (missingSections.includes('personal')) setStep(1);
+          else if (missingSections.includes('academic')) setStep(2);
+          else if (missingSections.includes('financial')) setStep(3);
+          else if (missingSections.includes('achievements')) setStep(4);
+        }
+      } catch (err) {
+        console.error("Error loading profile for assessment:", err);
+      } finally {
+        setLoadingProfile(false);
       }
     };
     fetchExisting();
-  }, []);
+  }, [isOnboarding, navigate]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -84,14 +124,56 @@ const EligibilityAssessment = () => {
     }));
   };
 
+  const validateStep = (currentStep) => {
+    if (currentStep === 1) {
+      if (!formData.age || formData.age <= 0) return 'Please specify a valid student age.';
+      if (!formData.city || formData.city.trim() === '') return 'Please enter your city/district.';
+      if (!formData.state || formData.state.trim() === '') return 'Please select your state.';
+    }
+    if (currentStep === 2) {
+      if (!formData.course || formData.course.trim() === '') return 'Please enter your course/discipline.';
+      if (formData.cgpa === '' || formData.cgpa === null || parseFloat(formData.cgpa) <= 0) return 'Please specify a valid CGPA (> 0).';
+      if (formData.attendance === '' || formData.attendance === null || parseFloat(formData.attendance) <= 0) return 'Please specify attendance percentage (> 0).';
+    }
+    if (currentStep === 3) {
+      if (formData.family_income === '' || formData.family_income === null || parseFloat(formData.family_income) <= 0) return 'Please specify annual family income (> 0).';
+      if (!formData.family_size || parseInt(formData.family_size) <= 0) return 'Please specify total family members.';
+      if (!formData.earning_members || parseInt(formData.earning_members) <= 0) return 'Please specify earning members.';
+    }
+    if (currentStep === 4) {
+      if (!formData.sports_achievement) return 'Please select a sports achievement category.';
+      if (!formData.academic_achievement) return 'Please select an academic honors category.';
+    }
+    return null;
+  };
+
   const handleNext = () => {
     setError(null);
+    const stepError = validateStep(step);
+    if (stepError) {
+      setError(stepError);
+      return;
+    }
     setStep(prev => Math.min(prev + 1, 5));
   };
 
   const handlePrev = () => {
     setError(null);
     setStep(prev => Math.max(prev - 1, 1));
+  };
+
+  // Fast-track evaluation using saved database records
+  const handleFastEvaluation = async () => {
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await eligibilityAPI.verify();
+      navigate('/student/results', { state: { result: res.data } });
+    } catch (err) {
+      setError(err.response?.data?.detail?.message || err.response?.data?.detail || "Evaluation failed. Please review your profile fields.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -120,9 +202,27 @@ const EligibilityAssessment = () => {
       };
 
       const res = await eligibilityAPI.checkEligibility(payload);
-      navigate('/student/results', { state: { result: res.data } });
+
+      // Update auth context state with completed profile
+      if (updateProfileCompletion) {
+        updateProfileCompletion({
+          profile_is_complete: true,
+          profile_completion_percentage: 100
+        });
+      }
+
+      if (isOnboarding) {
+        // Requirement 1.6: Once onboarding is complete, take student to dashboard
+        navigate('/student/dashboard', { 
+          replace: true,
+          state: { onboardingComplete: true }
+        });
+      } else {
+        navigate('/student/results', { state: { result: res.data } });
+      }
     } catch (err) {
-      setError(err.response?.data?.detail || "Assessment submission failed. Please verify all required fields.");
+      const detail = err.response?.data?.detail;
+      setError(typeof detail === 'object' ? (detail.message || JSON.stringify(detail)) : (detail || "Assessment submission failed. Please verify all required fields."));
     } finally {
       setSubmitting(false);
     }
@@ -136,30 +236,79 @@ const EligibilityAssessment = () => {
     { num: 5, label: "Review", icon: CheckSquare },
   ];
 
+  if (loadingProfile) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="w-6 h-6 border-2 border-zinc-200 border-t-zinc-900 rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      {/* Title */}
+      {/* Title & Context Header */}
       <div className="text-left pb-2 border-b border-zinc-200">
         <h1 className="text-xl sm:text-2xl font-semibold text-zinc-950 tracking-tight">
-          Eligibility Wizard
+          {isOnboarding ? "Student Onboarding & Profile Setup" : "Scholarship Eligibility Wizard"}
         </h1>
         <p className="text-xs text-zinc-500 mt-0.5">
-          Step-by-step assessment evaluated by Deterministic Rules (45%) and Gradient Boosting AI (55%)
+          {isOnboarding 
+            ? "Unified student setup: your credentials will be authoritative for both your profile and automated AI assessment."
+            : "Evaluated synchronously by deterministic statutory rules (45%) and Gradient Boosting AI (55%)."}
         </p>
       </div>
 
-      {/* Clean Minimal Step Progress Indicator */}
+      {/* Returning Student Complete Profile Banner with Fast-Track Option */}
+      {!isOnboarding && profileStatus.isComplete && (
+        <div className="p-4 bg-emerald-50/70 border border-emerald-200 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2 text-emerald-900">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>
+              <strong>Profile 100% Complete & Verified:</strong> Authoritative database credentials loaded. You can review details below or re-evaluate instantly.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={handleFastEvaluation}
+            disabled={submitting}
+            className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-md font-medium text-xs flex items-center gap-1.5 shrink-0 transition-colors disabled:opacity-50"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>{submitting ? 'Evaluating...' : 'Fast Re-Evaluate'}</span>
+          </button>
+        </div>
+      )}
+
+      {/* Incomplete Profile Guidance Notice */}
+      {!profileStatus.isComplete && profileStatus.completion > 0 && (
+        <div className="p-3 bg-zinc-50 border border-zinc-200 rounded-lg text-xs text-zinc-700 flex items-center justify-between gap-2">
+          <span>
+            Profile is {profileStatus.completion}% complete. Missing: {profileStatus.missingSections?.join(', ')}. Saved fields are pre-filled below.
+          </span>
+          <span className="font-mono text-zinc-500 font-medium">{profileStatus.completion}%</span>
+        </div>
+      )}
+
+      {/* Step Progress Indicator */}
       <div className="bg-white border border-zinc-200 rounded-lg p-3.5 sm:p-4">
         <div className="grid grid-cols-5 gap-2">
           {stepTitles.map((s) => {
             const isCompleted = step > s.num;
             const isCurrent = step === s.num;
             return (
-              <div key={s.num} className="flex flex-col items-center text-center">
+              <button
+                type="button"
+                key={s.num}
+                onClick={() => {
+                  setError(null);
+                  setStep(s.num);
+                }}
+                className="flex flex-col items-center text-center focus:outline-none"
+              >
                 <div
                   className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium transition-colors ${
                     isCurrent
-                      ? 'bg-zinc-900 text-white'
+                      ? 'bg-zinc-900 text-white ring-2 ring-zinc-900 ring-offset-1'
                       : isCompleted
                       ? 'bg-zinc-100 text-zinc-900 border border-zinc-300'
                       : 'bg-zinc-50 text-zinc-400 border border-zinc-200'
@@ -170,7 +319,7 @@ const EligibilityAssessment = () => {
                 <span className={`text-[11px] mt-1.5 hidden sm:block ${isCurrent ? 'font-medium text-zinc-950' : 'text-zinc-500'}`}>
                   {s.label}
                 </span>
-              </div>
+              </button>
             );
           })}
         </div>
@@ -191,12 +340,14 @@ const EligibilityAssessment = () => {
             <div className="space-y-4">
               <div className="pb-2 border-b border-zinc-100">
                 <h2 className="text-sm font-semibold text-zinc-900">Step 1: Personal & Demographic Information</h2>
-                <p className="text-xs text-zinc-500">Provide legal identity and domicile details for statutory quota verification.</p>
+                <p className="text-xs text-zinc-500">Legal identity and domicile details used for quota and institutional checks.</p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-zinc-700 mb-1">Age</label>
+                  <label className="block text-xs font-medium text-zinc-700 mb-1">
+                    Age <span className="text-rose-500">*</span>
+                  </label>
                   <input
                     type="number"
                     name="age"
@@ -211,7 +362,9 @@ const EligibilityAssessment = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-zinc-700 mb-1">Gender</label>
+                  <label className="block text-xs font-medium text-zinc-700 mb-1">
+                    Gender <span className="text-rose-500">*</span>
+                  </label>
                   <select
                     name="gender"
                     value={formData.gender}
@@ -225,7 +378,9 @@ const EligibilityAssessment = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-zinc-700 mb-1">State of Domicile</label>
+                  <label className="block text-xs font-medium text-zinc-700 mb-1">
+                    State of Domicile <span className="text-rose-500">*</span>
+                  </label>
                   <select
                     name="state"
                     value={formData.state}
@@ -247,7 +402,9 @@ const EligibilityAssessment = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-zinc-700 mb-1">City / District</label>
+                  <label className="block text-xs font-medium text-zinc-700 mb-1">
+                    City / District <span className="text-rose-500">*</span>
+                  </label>
                   <input
                     type="text"
                     name="city"
@@ -298,6 +455,20 @@ const EligibilityAssessment = () => {
                     <option value={1}>Yes (First in family to attend college)</option>
                   </select>
                 </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-zinc-700 mb-1">Institution Type</label>
+                  <select
+                    name="institution_type"
+                    value={formData.institution_type}
+                    onChange={handleChange}
+                    className="w-full text-xs p-2 rounded-md border border-zinc-300 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900"
+                  >
+                    <option value="Government">Government University / College</option>
+                    <option value="Govt-Aided">Government-Aided College</option>
+                    <option value="Private">Private / Self-Financed Institute</option>
+                  </select>
+                </div>
               </div>
             </div>
           )}
@@ -307,12 +478,14 @@ const EligibilityAssessment = () => {
             <div className="space-y-4">
               <div className="pb-2 border-b border-zinc-100">
                 <h2 className="text-sm font-semibold text-zinc-900">Step 2: Academic Record & Merit</h2>
-                <p className="text-xs text-zinc-500">Academic criteria are matched directly against institutional thresholds.</p>
+                <p className="text-xs text-zinc-500">Academic criteria matched against institutional thresholds and merit quotas.</p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-zinc-700 mb-1">Current Education Level</label>
+                  <label className="block text-xs font-medium text-zinc-700 mb-1">
+                    Current Education Level <span className="text-rose-500">*</span>
+                  </label>
                   <select
                     name="education_level"
                     value={formData.education_level}
@@ -327,7 +500,9 @@ const EligibilityAssessment = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-zinc-700 mb-1">Discipline / Course</label>
+                  <label className="block text-xs font-medium text-zinc-700 mb-1">
+                    Discipline / Course <span className="text-rose-500">*</span>
+                  </label>
                   <select
                     name="course"
                     value={formData.course}
@@ -348,7 +523,9 @@ const EligibilityAssessment = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-zinc-700 mb-1">Year of Study</label>
+                  <label className="block text-xs font-medium text-zinc-700 mb-1">
+                    Year of Study <span className="text-rose-500">*</span>
+                  </label>
                   <select
                     name="year_of_study"
                     value={formData.year_of_study}
@@ -363,7 +540,9 @@ const EligibilityAssessment = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-zinc-700 mb-1">Current CGPA (0.00 – 10.00)</label>
+                  <label className="block text-xs font-medium text-zinc-700 mb-1">
+                    Current CGPA (0.00 – 10.00) <span className="text-rose-500">*</span>
+                  </label>
                   <input
                     type="number"
                     step="0.01"
@@ -383,14 +562,13 @@ const EligibilityAssessment = () => {
                   <input
                     type="number"
                     step="0.1"
-                    min="35"
+                    min="0"
                     max="100"
                     name="percentage"
                     value={formData.percentage}
                     onChange={handleChange}
                     className="w-full text-xs p-2 rounded-md border border-zinc-300 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900"
                     placeholder="e.g. 82.4"
-                    required
                   />
                 </div>
 
@@ -406,15 +584,17 @@ const EligibilityAssessment = () => {
                     className="w-full text-xs p-2 rounded-md border border-zinc-300 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900"
                     required
                   />
-                  <p className="text-[10px] text-zinc-400 mt-1">Legal constraint: &gt;1 active backlog disqualifies from Tier-1 merit schemes.</p>
+                  <p className="text-[10px] text-zinc-400 mt-1">More than 1 active backlog disqualifies from Tier-1 merit schemes.</p>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-zinc-700 mb-1">Attendance Percentage (%)</label>
+                  <label className="block text-xs font-medium text-zinc-700 mb-1">
+                    Attendance Percentage (%) <span className="text-rose-500">*</span>
+                  </label>
                   <input
                     type="number"
                     step="0.1"
-                    min="40"
+                    min="0"
                     max="100"
                     name="attendance"
                     value={formData.attendance}
@@ -426,16 +606,15 @@ const EligibilityAssessment = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-zinc-700 mb-1">Institution Type</label>
+                  <label className="block text-xs font-medium text-zinc-700 mb-1">Previous Scholarship Recipient</label>
                   <select
-                    name="institution_type"
-                    value={formData.institution_type}
+                    name="previous_scholarship"
+                    value={formData.previous_scholarship}
                     onChange={handleChange}
                     className="w-full text-xs p-2 rounded-md border border-zinc-300 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900"
                   >
-                    <option value="Government">Government University / College</option>
-                    <option value="Govt-Aided">Government-Aided College</option>
-                    <option value="Private">Private / Self-Financed Institute</option>
+                    <option value={0}>No (Applying fresh)</option>
+                    <option value={1}>Yes (Received scholarship previously)</option>
                   </select>
                 </div>
               </div>
@@ -447,16 +626,18 @@ const EligibilityAssessment = () => {
             <div className="space-y-4">
               <div className="pb-2 border-b border-zinc-100">
                 <h2 className="text-sm font-semibold text-zinc-900">Step 3: Household Financial Profile</h2>
-                <p className="text-xs text-zinc-500">Evaluates family need-based priority and statutory subsidy ceilings (≤ ₹8 Lakhs).</p>
+                <p className="text-xs text-zinc-500">Evaluates need-based priority and statutory subsidy ceilings (≤ ₹8 Lakhs).</p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-zinc-700 mb-1">Annual Family Income (₹ INR)</label>
+                  <label className="block text-xs font-medium text-zinc-700 mb-1">
+                    Annual Family Income (₹ INR) <span className="text-rose-500">*</span>
+                  </label>
                   <input
                     type="number"
-                    min="10000"
-                    max="5000000"
+                    min="1"
+                    max="10000000"
                     name="family_income"
                     value={formData.family_income}
                     onChange={handleChange}
@@ -470,7 +651,9 @@ const EligibilityAssessment = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-zinc-700 mb-1">Total Family Members</label>
+                  <label className="block text-xs font-medium text-zinc-700 mb-1">
+                    Total Family Members <span className="text-rose-500">*</span>
+                  </label>
                   <input
                     type="number"
                     min="1"
@@ -484,7 +667,9 @@ const EligibilityAssessment = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-zinc-700 mb-1">Parent's Primary Occupation</label>
+                  <label className="block text-xs font-medium text-zinc-700 mb-1">
+                    Parent's Primary Occupation <span className="text-rose-500">*</span>
+                  </label>
                   <select
                     name="parent_occupation"
                     value={formData.parent_occupation}
@@ -502,7 +687,9 @@ const EligibilityAssessment = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-zinc-700 mb-1">Earning Members</label>
+                  <label className="block text-xs font-medium text-zinc-700 mb-1">
+                    Earning Members <span className="text-rose-500">*</span>
+                  </label>
                   <select
                     name="earning_members"
                     value={formData.earning_members}
@@ -552,12 +739,14 @@ const EligibilityAssessment = () => {
             <div className="space-y-4">
               <div className="pb-2 border-b border-zinc-100">
                 <h2 className="text-sm font-semibold text-zinc-900">Step 4: Achievements & Extracurriculars</h2>
-                <p className="text-xs text-zinc-500">Holistic credentials boost the ML peer competitiveness probability.</p>
+                <p className="text-xs text-zinc-500">Co-curricular credentials benchmark peer competitiveness in the ML model.</p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-zinc-700 mb-1">Sports Achievements</label>
+                  <label className="block text-xs font-medium text-zinc-700 mb-1">
+                    Sports Achievements <span className="text-rose-500">*</span>
+                  </label>
                   <select
                     name="sports_achievement"
                     value={formData.sports_achievement}
@@ -572,7 +761,9 @@ const EligibilityAssessment = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-zinc-700 mb-1">Academic Honors</label>
+                  <label className="block text-xs font-medium text-zinc-700 mb-1">
+                    Academic Honors <span className="text-rose-500">*</span>
+                  </label>
                   <select
                     name="academic_achievement"
                     value={formData.academic_achievement}
@@ -638,9 +829,14 @@ const EligibilityAssessment = () => {
           {/* STEP 5: REVIEW & SUMMARY */}
           {step === 5 && (
             <div className="space-y-4">
-              <div className="pb-2 border-b border-zinc-100">
-                <h2 className="text-sm font-semibold text-zinc-900">Step 5: Review & Confirmation</h2>
-                <p className="text-xs text-zinc-500">Confirm your details before triggering the dual-engine evaluation.</p>
+              <div className="pb-2 border-b border-zinc-100 flex items-center justify-between">
+                <div>
+                  <h2 className="text-sm font-semibold text-zinc-900">Step 5: Review & Confirmation</h2>
+                  <p className="text-xs text-zinc-500">Confirm your details. They will be saved authoritatively to your permanent profile.</p>
+                </div>
+                <span className="text-xs font-semibold px-2.5 py-1 rounded bg-zinc-100 text-zinc-800 border border-zinc-200">
+                  Ready for Evaluation
+                </span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
@@ -649,12 +845,13 @@ const EligibilityAssessment = () => {
                   <div className="flex justify-between text-zinc-600"><span>Gender / Age:</span> <span className="font-medium text-zinc-900">{formData.gender}, {formData.age} yrs</span></div>
                   <div className="flex justify-between text-zinc-600"><span>State:</span> <span className="font-medium text-zinc-900">{formData.state} ({formData.rural_urban})</span></div>
                   <div className="flex justify-between text-zinc-600"><span>PwD Status:</span> <span className="font-medium text-zinc-900">{formData.disability ? "Yes" : "No"}</span></div>
+                  <div className="flex justify-between text-zinc-600"><span>First Generation:</span> <span className="font-medium text-zinc-900">{formData.first_generation ? "Yes" : "No"}</span></div>
                 </div>
 
                 <div className="p-3.5 rounded-lg border border-zinc-200 bg-zinc-50/50 space-y-1.5">
                   <span className="font-semibold text-zinc-900 block">Academic Record</span>
                   <div className="flex justify-between text-zinc-600"><span>Course / Year:</span> <span className="font-medium text-zinc-900">{formData.course} (Yr {formData.year_of_study})</span></div>
-                  <div className="flex justify-between text-zinc-600"><span>CGPA / %:</span> <span className="font-medium text-zinc-900">{formData.cgpa} / {formData.percentage}%</span></div>
+                  <div className="flex justify-between text-zinc-600"><span>CGPA / %:</span> <span className="font-medium text-zinc-900">{formData.cgpa} / {formData.percentage || '—'}%</span></div>
                   <div className="flex justify-between text-zinc-600"><span>Backlogs / Attendance:</span> <span className="font-medium text-zinc-900">{formData.backlogs} backlogs, {formData.attendance}%</span></div>
                   <div className="flex justify-between text-zinc-600"><span>Institution:</span> <span className="font-medium text-zinc-900">{formData.institution_type}</span></div>
                 </div>
@@ -677,7 +874,7 @@ const EligibilityAssessment = () => {
               </div>
 
               <div className="p-3 rounded-lg border border-zinc-200 bg-zinc-50 text-xs text-zinc-600">
-                Evaluation will synchronously assess compliance against statutory scholarship criteria and calculate Gradient Boosting multidimensional probability.
+                Evaluation will synchronously assess compliance against statutory scholarship criteria (45%) and calculate Gradient Boosting multidimensional probability (55%).
               </div>
             </div>
           )}
@@ -710,7 +907,8 @@ const EligibilityAssessment = () => {
                 disabled={submitting}
                 className="px-5 py-2 text-xs font-medium text-white bg-zinc-900 hover:bg-zinc-800 rounded-md flex items-center gap-1.5 disabled:opacity-50 transition-colors ml-auto"
               >
-                <span>{submitting ? 'Evaluating Profile...' : 'Run Dual-Engine Evaluation'}</span>
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>{submitting ? 'Saving & Evaluating...' : (isOnboarding ? 'Finish Onboarding & Activate Dashboard' : 'Run Dual-Engine Evaluation')}</span>
               </button>
             )}
           </div>

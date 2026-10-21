@@ -93,6 +93,7 @@ def get_student_applications(
     results = []
     for a in apps:
         s = a.scholarship
+        rev = a.reviewer
         results.append({
             "id": a.id,
             "scholarship_id": a.scholarship_id,
@@ -102,7 +103,14 @@ def get_student_applications(
             "status": a.status,
             "applied_at": a.applied_at,
             "score_at_application": a.score_at_application,
-            "remarks": a.remarks
+            "remarks": a.remarks,
+            "decision_remarks": a.decision_remarks or a.remarks,
+            "reviewed_at": a.reviewed_at,
+            "reviewer_name": rev.full_name if rev else None,
+            "award_status": a.award_status or "NOT_AWARDED",
+            "disbursed_at": a.disbursed_at,
+            "disbursement_reference": a.disbursement_reference,
+            "disbursement_notes": a.disbursement_notes
         })
     return results
 
@@ -132,4 +140,23 @@ def get_recommendations(
         "attendance": academics.attendance if academics else 85.0
     }
 
-    return ScholarshipRecommendationEngine.get_recommendations(student_dict, db, ml_prob=prob)
+    recs = ScholarshipRecommendationEngine.get_recommendations(student_dict, db, ml_prob=prob)
+
+    # Attach authenticated student's real application and award records
+    user_apps = db.query(Application).filter(Application.user_id == user_id).all()
+    apps_by_sch = {a.scholarship_id: a for a in user_apps}
+
+    for rec in recs:
+        app = apps_by_sch.get(rec["id"])
+        if app:
+            rec["application_id"] = app.id
+            rec["application_status"] = app.status
+            rec["award_status"] = app.award_status or "NOT_AWARDED"
+            rec["decision_remarks"] = app.decision_remarks or app.remarks
+            rec["applied_at"] = app.applied_at
+            rec["reviewed_at"] = app.reviewed_at
+            rec["disbursed_at"] = app.disbursed_at
+            rec["disbursement_reference"] = app.disbursement_reference
+            rec["disbursement_notes"] = app.disbursement_notes
+
+    return recs

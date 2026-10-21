@@ -71,7 +71,10 @@ export const documentAPI = {
   upload: (formData) => api.post('/documents/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
-  getAll: () => api.get('/documents'),
+  getAll: (studentId) => api.get('/documents', { params: studentId ? { student_id: studentId } : {} }),
+  updateStatus: (docId, data) => api.put(`/documents/${docId}/status`, data),
+  getDownloadUrl: (docId) => `${API_BASE_URL}/documents/${docId}/download`,
+  download: (docId) => api.get(`/documents/${docId}/download`, { responseType: 'blob' }),
 };
 
 export const notificationAPI = {
@@ -83,8 +86,12 @@ export const notificationAPI = {
 export const adminAPI = {
   getDashboard: () => api.get('/admin/dashboard'),
   getStudents: () => api.get('/admin/students'),
-  getApplications: () => api.get('/admin/applications'),
+  getApplications: (params) => api.get('/admin/applications', { params }),
+  getApplicationDetail: (id) => api.get(`/admin/applications/${id}`),
   updateApplicationStatus: (id, data) => api.put(`/admin/applications/${id}/status`, data),
+  updateDocumentStatus: (docId, data) => api.put(`/documents/${docId}/status`, data),
+  getScholarshipAwards: (schId) => api.get(`/admin/scholarships/${schId}/awards`),
+  disburseAward: (appId, data) => api.post(`/admin/applications/${appId}/disburse`, data),
   createScholarship: (data) => api.post('/admin/scholarships', data),
   updateScholarship: (id, data) => api.put(`/admin/scholarships/${id}`, data),
   deleteScholarship: (id) => api.delete(`/admin/scholarships/${id}`),

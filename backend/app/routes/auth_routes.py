@@ -6,16 +6,31 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from backend.app.database.connection import get_db
-from backend.app.database.models import User, Notification
+from backend.app.database.models import (
+    User, Notification, StudentProfile, AcademicRecord, FinancialRecord, AchievementRecord
+)
 from backend.app.schemas.auth_schemas import (
     UserRegister, UserLogin, Token, UserResponse, PasswordReset
 )
 from backend.app.auth.security import get_password_hash, verify_password
 from backend.app.auth.jwt_handler import create_access_token, get_current_user_payload
+from backend.app.routes.student_routes import calculate_completion
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+
+
+def _get_user_profile_status(user: User, db: Session):
+    """Calculates profile completeness directly from DB records."""
+    if user.role != "STUDENT":
+        return True, 100
+    profile = db.query(StudentProfile).filter(StudentProfile.user_id == user.id).first()
+    academics = db.query(AcademicRecord).filter(AcademicRecord.user_id == user.id).first()
+    financials = db.query(FinancialRecord).filter(FinancialRecord.user_id == user.id).first()
+    achievements = db.query(AchievementRecord).filter(AchievementRecord.user_id == user.id).first()
+    completion = calculate_completion(profile, academics, financials, achievements)
+    return (completion == 100), completion
 
 
 @router.post("/register", response_model=Token)
@@ -42,16 +57,13 @@ def register(user_in: UserRegister, db: Session = Depends(get_db)):
     logger.info(f"[REGISTER] New user created: id={user.id}, email={user.email}, role={user.role}")
 
     # Add welcome notification for students
-    # NOTE: We do NOT create StudentProfile/AcademicRecord/etc. here.
-    # Those are created only when the student fills out their profile form.
-    # This ensures new users see "Profile Incomplete" correctly.
     if user.role == "STUDENT":
         welcome_note = Notification(
             user_id=user.id,
             title="Welcome to the Scholarship Portal!",
             message=(
                 "Your account has been created successfully. "
-                "Please complete your 5-step profile to unlock AI eligibility verification "
+                "Please complete your profile to unlock AI eligibility verification "
                 "and discover scholarships you qualify for."
             ),
             type="INFO"
@@ -68,7 +80,9 @@ def register(user_in: UserRegister, db: Session = Depends(get_db)):
         "user_id": user.id,
         "email": user.email,
         "full_name": user.full_name,
-        "role": user.role
+        "role": user.role,
+        "profile_is_complete": False,
+        "profile_completion_percentage": 0,
     }
 
 
@@ -91,6 +105,7 @@ def login(login_in: UserLogin, db: Session = Depends(get_db)):
 
     token_data = {"sub": str(user.id), "email": user.email, "role": user.role}
     token = create_access_token(token_data)
+    is_complete, completion = _get_user_profile_status(user, db)
 
     return {
         "access_token": token,
@@ -98,7 +113,9 @@ def login(login_in: UserLogin, db: Session = Depends(get_db)):
         "user_id": user.id,
         "email": user.email,
         "full_name": user.full_name,
-        "role": user.role
+        "role": user.role,
+        "profile_is_complete": is_complete,
+        "profile_completion_percentage": completion,
     }
 
 
@@ -108,7 +125,17 @@ def get_current_user(payload: dict = Depends(get_current_user_payload), db: Sess
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    return user
+    is_complete, completion = _get_user_profile_status(user, db)
+    return {
+        "id": user.id,
+        "email": user.email,
+        "full_name": user.full_name,
+        "role": user.role,
+        "is_active": user.is_active,
+        "created_at": user.created_at,
+        "profile_is_complete": is_complete,
+        "profile_completion_percentage": completion,
+    }
 
 
 @router.post("/forgot-password")

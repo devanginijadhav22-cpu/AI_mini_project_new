@@ -23,6 +23,8 @@ class Token(BaseModel):
     email: str
     full_name: str
     role: str
+    profile_is_complete: Optional[bool] = False
+    profile_completion_percentage: Optional[int] = 0
 
 class UserResponse(BaseModel):
     id: int
@@ -31,6 +33,8 @@ class UserResponse(BaseModel):
     role: str
     is_active: bool
     created_at: datetime
+    profile_is_complete: Optional[bool] = False
+    profile_completion_percentage: Optional[int] = 0
 
     class Config:
         from_attributes = True

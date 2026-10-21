@@ -25,9 +25,9 @@ class User(Base):
     academic_record = relationship("AcademicRecord", back_populates="user", uselist=False, cascade="all, delete-orphan")
     financial_record = relationship("FinancialRecord", back_populates="user", uselist=False, cascade="all, delete-orphan")
     achievements = relationship("AchievementRecord", back_populates="user", uselist=False, cascade="all, delete-orphan")
-    applications = relationship("Application", back_populates="user", cascade="all, delete-orphan")
+    applications = relationship("Application", back_populates="user", cascade="all, delete-orphan", foreign_keys="[Application.user_id]")
     eligibility_results = relationship("EligibilityResult", back_populates="user", cascade="all, delete-orphan")
-    documents = relationship("StudentDocument", back_populates="user", cascade="all, delete-orphan")
+    documents = relationship("StudentDocument", back_populates="user", cascade="all, delete-orphan", foreign_keys="[StudentDocument.user_id]")
     notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
 
 
@@ -149,13 +149,21 @@ class Application(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     scholarship_id = Column(Integer, ForeignKey("scholarships.id", ondelete="CASCADE"), nullable=False)
-    status = Column(String(30), default="PENDING")  # PENDING, UNDER_REVIEW, APPROVED, REJECTED
+    status = Column(String(30), default="PENDING")  # PENDING, UNDER_REVIEW, NEEDS_INFORMATION, APPROVED, REJECTED
     applied_at = Column(DateTime, default=datetime.datetime.utcnow)
     score_at_application = Column(Float, default=0.0)
-    remarks = Column(Text, nullable=True)
+    remarks = Column(Text, nullable=True)  # Submission or decision remarks
+    decision_remarks = Column(Text, nullable=True)  # Dedicated admin decision remarks
+    reviewer_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    reviewed_at = Column(DateTime, nullable=True)
+    award_status = Column(String(30), default="NOT_AWARDED")  # NOT_AWARDED, AWARDED, DISBURSED
+    disbursed_at = Column(DateTime, nullable=True)
+    disbursement_reference = Column(String(100), nullable=True)
+    disbursement_notes = Column(Text, nullable=True)
 
-    user = relationship("User", back_populates="applications")
+    user = relationship("User", foreign_keys=[user_id], back_populates="applications")
     scholarship = relationship("Scholarship", back_populates="applications")
+    reviewer = relationship("User", foreign_keys=[reviewer_id])
 
 
 class EligibilityResult(Base):
@@ -184,10 +192,14 @@ class StudentDocument(Base):
     filename = Column(String(255), nullable=False)
     file_path = Column(String(500), nullable=False)
     file_size_kb = Column(Float, default=0.0)
-    verification_status = Column(String(30), default="VERIFIED")  # PENDING, VERIFIED, REJECTED
+    verification_status = Column(String(30), default="VERIFIED")  # PENDING, VERIFIED, NEEDS_CORRECTION, REJECTED
+    admin_remarks = Column(String(255), nullable=True)
+    verified_at = Column(DateTime, nullable=True)
+    verified_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     uploaded_at = Column(DateTime, default=datetime.datetime.utcnow)
 
-    user = relationship("User", back_populates="documents")
+    user = relationship("User", foreign_keys=[user_id], back_populates="documents")
+    verifier = relationship("User", foreign_keys=[verified_by])
 
 
 class Notification(Base):

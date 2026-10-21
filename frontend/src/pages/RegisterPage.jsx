@@ -30,7 +30,7 @@ const RegisterPage = () => {
     setLoading(true);
     try {
       await register(fullName, email, password);
-      navigate('/student/dashboard', { replace: true });
+      navigate('/student/onboarding', { replace: true });
     } catch (err) {
       setError(err.response?.data?.detail || 'Registration failed. Please check your information.');
     } finally {

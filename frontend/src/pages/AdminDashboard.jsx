@@ -90,13 +90,15 @@ const AdminDashboard = () => {
           icon={Award}
           color="emerald"
         />
-        <MetricCard
-          title="Applications"
-          value={dashboardStats?.total_applications || 0}
-          subtitle={`${dashboardStats?.pending_applications || 0} awaiting review`}
-          icon={FileText}
-          color="indigo"
-        />
+        <Link to="/admin/applications" className="block hover:opacity-95 transition">
+          <MetricCard
+            title="Applications"
+            value={dashboardStats?.total_applications || 0}
+            subtitle={`${dashboardStats?.pending_applications || 0} awaiting review (${dashboardStats?.unique_applicants || 0} applicants)`}
+            icon={FileText}
+            color="indigo"
+          />
+        </Link>
         <MetricCard
           title="Eligible Students"
           value={dashboardStats?.eligible_students_count || 0}
@@ -178,7 +180,21 @@ const AdminDashboard = () => {
       </div>
 
       {/* Quick Action Navigation Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Link
+          to="/admin/applications"
+          className="bg-white p-5 rounded-xl border border-zinc-200/80 space-y-2.5 hover:border-zinc-300 transition"
+        >
+          <div className="w-8 h-8 rounded-lg bg-zinc-100 text-zinc-700 flex items-center justify-center border border-zinc-200">
+            <FileText className="w-4 h-4" />
+          </div>
+          <h4 className="text-xs font-semibold text-zinc-900 flex items-center gap-1">
+            Application Review →
+          </h4>
+          <p className="text-xs text-zinc-500 leading-relaxed">
+            Audit applicant files, verify statutory certificates, approve grants, and disburse awards.
+          </p>
+        </Link>
         <Link
           to="/admin/students"
           className="bg-white p-5 rounded-xl border border-zinc-200/80 space-y-2.5 hover:border-zinc-300 transition"

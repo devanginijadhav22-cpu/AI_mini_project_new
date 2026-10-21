@@ -18,7 +18,7 @@ const Navbar = () => {
         <div className="flex justify-between items-center h-14 sm:h-16">
           {/* Left: Branding */}
           <Link 
-            to={user ? (user.role === 'ADMIN' ? '/admin/dashboard' : '/student/dashboard') : '/login'} 
+            to={user ? (user.role === 'ADMIN' ? '/admin/dashboard' : (user.profile_is_complete ? '/student/dashboard' : '/student/onboarding')) : '/login'} 
             className="flex items-center space-x-2.5 group shrink-0"
           >
             <div className="w-8 h-8 rounded-lg bg-zinc-900 flex items-center justify-center text-white shrink-0">

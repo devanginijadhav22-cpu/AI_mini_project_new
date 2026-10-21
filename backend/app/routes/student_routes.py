@@ -67,6 +67,38 @@ def is_profile_complete(profile, academics, financials, achievements) -> bool:
     return calculate_completion(profile, academics, financials, achievements) == 100
 
 
+def get_missing_details(profile, academics, financials, achievements):
+    """
+    Returns (missing_sections, missing_fields) detailing exactly which
+    sections and fields are missing for partial completion routing.
+    """
+    missing_sections = []
+    missing_fields = {}
+
+    def check(obj, fields, sec_name):
+        missing = []
+        if obj is None:
+            missing = list(fields)
+        else:
+            for f in fields:
+                val = getattr(obj, f, None)
+                if val is None or (isinstance(val, str) and val.strip() == ""):
+                    missing.append(f)
+                elif f in ("cgpa", "attendance", "family_income") and isinstance(val, (int, float)) and val <= 0:
+                    missing.append(f)
+                elif f == "age" and isinstance(val, int) and val <= 0:
+                    missing.append(f)
+        if missing:
+            missing_sections.append(sec_name)
+            missing_fields[sec_name] = missing
+
+    check(profile, REQUIRED_PERSONAL_FIELDS, "personal")
+    check(academics, REQUIRED_ACADEMIC_FIELDS, "academic")
+    check(financials, REQUIRED_FINANCIAL_FIELDS, "financial")
+    check(achievements, REQUIRED_ACHIEVEMENT_FIELDS, "achievements")
+    return missing_sections, missing_fields
+
+
 @router.get("/profile")
 def get_profile(payload: dict = Depends(require_role(["STUDENT", "ADMIN"])), db: Session = Depends(get_db)):
     user_id = int(payload.get("sub"))
@@ -81,6 +113,7 @@ def get_profile(payload: dict = Depends(require_role(["STUDENT", "ADMIN"])), db:
 
     completion = calculate_completion(profile, academics, financials, achievements)
     complete   = (completion == 100)
+    missing_sections, missing_fields = get_missing_details(profile, academics, financials, achievements)
 
     # IMPORTANT: Return actual DB values — do NOT fall back to hardcoded defaults.
     # Null values tell the frontend the profile is truly incomplete.
@@ -127,6 +160,8 @@ def get_profile(payload: dict = Depends(require_role(["STUDENT", "ADMIN"])), db:
         },
         "profile_completion_percentage": completion,
         "profile_is_complete": complete,
+        "missing_sections": missing_sections,
+        "missing_fields": missing_fields,
     }
 
 
@@ -181,12 +216,16 @@ def update_profile(data: dict, payload: dict = Depends(require_role(["STUDENT", 
     db.refresh(achievements)
 
     completion = calculate_completion(profile, academics, financials, achievements)
+    complete = (completion == 100)
+    missing_sections, missing_fields = get_missing_details(profile, academics, financials, achievements)
     logger.info(f"[PROFILE UPDATE] user_id={user_id} completion={completion}%")
 
     return {
         "message": "Profile updated successfully",
         "profile_completion_percentage": completion,
-        "profile_is_complete": completion == 100,
+        "profile_is_complete": complete,
+        "missing_sections": missing_sections,
+        "missing_fields": missing_fields,
     }
 
 
@@ -201,6 +240,7 @@ def get_student_dashboard(payload: dict = Depends(require_role(["STUDENT"])), db
 
     completion = calculate_completion(profile, academics, financials, achievements)
     complete   = (completion == 100)
+    missing_sections, missing_fields = get_missing_details(profile, academics, financials, achievements)
 
     # Latest Eligibility Assessment — scoped to THIS user only
     latest_result = db.query(EligibilityResult).filter(
@@ -242,6 +282,8 @@ def get_student_dashboard(payload: dict = Depends(require_role(["STUDENT"])), db
     return {
         "profile_completion":           completion,
         "profile_is_complete":          complete,
+        "missing_sections":             missing_sections,
+        "missing_fields":               missing_fields,
         "eligible_scholarships_count":  eligible_count,
         "potential_scholarships_count": potential_count,
         "applications_submitted":       submitted_count,
